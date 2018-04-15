@@ -1,0 +1,6 @@
+[submodule "pygame-examples"]
+	path = pygame-examples
+	url = https://github.com/ternus/pygame-examples
+[submodule "lunarlander"]
+	path = lunarlander
+	url = https://github.com/pyrex8/lunarlander
