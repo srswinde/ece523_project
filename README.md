@@ -2,7 +2,7 @@
 
 # Lunar Lander Game
 
-
+## To start the game type python3 lunarlander.py
 ## Rules
 Simply navigate the triangle space ship to the 
 section of the planet that is not errupting.
