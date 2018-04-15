@@ -11,7 +11,7 @@ away from the planet (orientation) the speed
 must be below a certain threshold and you 
 must land on the correct part of the planet
 
-##Keys
+## Keys
 
 UP is thrust
 Left is rotate CCW
