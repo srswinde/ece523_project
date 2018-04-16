@@ -2,7 +2,7 @@
 
 # Lunar Lander Game
 
-
+## To start the game type python3 lunarlander.py
 ## Rules
 Simply navigate the triangle space ship to the 
 section of the planet that is not errupting.
@@ -11,7 +11,7 @@ away from the planet (orientation) the speed
 must be below a certain threshold and you 
 must land on the correct part of the planet
 
-##Keys
+## Keys
 
 UP is thrust
 Left is rotate CCW
