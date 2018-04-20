@@ -21,7 +21,8 @@ config = dict(
     land_speed=0.25,
     delta_angle=1,
     thrust=0.01,
-    dt=0.05
+    dt=0.5, #0.05
+    flat_index = 300
 )
 
 
@@ -46,7 +47,8 @@ class PygView( object ):
         config["planet_center"] = VEC( self.width//2, self.height//2 )
         self.landing_points = self.do_planet(
             radius=config["planet_radius"],
-            center=config['planet_center'] )
+            center=config['planet_center'],
+            flat_index = config['flat_index'])
         self.sp = space_ship( self.screen, self.landing_points )
         self.game_over = False
 
@@ -72,37 +74,51 @@ class PygView( object ):
                         self.reset()
 
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
+            ai_key = "none"
+
+            if keys[pygame.K_LEFT] or ai_key == "left":
                 da = -config["delta_angle"]
 
-            if keys[pygame.K_RIGHT]:
+            if keys[pygame.K_RIGHT] or ai_key == "right":
                 da = config["delta_angle"]
 
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_UP] or ai_key == "up":
                 thrust = config["thrust"]
 
             # Render the planet
             self.do_planet(
                 radius=config["planet_radius"],
-                center=config['planet_center'])
+                center=config['planet_center'],
+                flat_index = config['flat_index'])
 
             # Do the physics on the spaceship
             self.sp.physics(
                 delta_angle=da,
                 thrust=thrust,
                 stop=self.game_over )
-
+            
+            
+            if(self.sp.check_pos_screen()==False):
+                self.game_over = True
+                self.draw_text("YOU DIE! FOOL!")
+            
+            
             # Did we land?
             if self.sp.check_on_planet():
                 self.game_over = True
-
+                
+                if self.sp.check_land_spot(): 
+                    self.draw_text("YOU LANDED SUCCESSFULLY!")
+                else:
+                    self.draw_text("YOU CRASHED!")
+                '''
                 if self.sp.check_orientation() \
                         and self.sp.check_land_spot() \
                         and self.sp.check_speed():
                     self.draw_text("YOU LANDED SUCCESSFULLY!")
                 else:
                     self.draw_text("YOU CRASHED!")
-
+                '''   
             # Not yet update the message on the screen
             else:
 
@@ -219,13 +235,20 @@ class space_ship:
 
     def check_land_spot( self ):
         planet_angle = (self.pos - config["planet_center"]).angle_to(VEC(1, 0))
-
+        #print(self.la0," ", self.laf, " " ,  planet_angle )
         if self.la0 <= planet_angle <= self.laf \
                 or self.laf <= planet_angle <= self.la0:
             return True
 
         else:
             return False
+
+    def check_pos_screen(self):
+        if(self.pos[0] > 0 and self.pos[0] < 1000 and self.pos[1] > 0 and self.pos[1] < 800):
+            return True
+        else:
+            return False
+        #print(self.pos)
 
     def check_on_planet(self):
 
