@@ -23,7 +23,14 @@ config = dict(
     delta_angle=1,
     thrust=0.01,
     dt=3, #0.05
-    flat_index = 0,
+    flat_index = 300,
+
+    # where on the planet (in degrees) 
+    # does the flat part start
+    flat_angle_start = 90
+    # Width in degrees of the flat part
+    flat_angle_width = 30
+    
     num_ships = 30
 )
 
@@ -102,6 +109,8 @@ class PygView( object ):
         running = True
         ai_key = "none"
         while running:
+
+            # angle of rotation
             da = 0
             thrust = 0.0
             for event in pygame.event.get():
@@ -325,6 +334,11 @@ class space_ship:
         self.landing_points = landing_points
         self.crashed = False
         self.fitness = 0
+
+
+        # reference vector for measuring angles.
+        self.reference_vector = VEC(0, 1)
+
         # VEC can't be instantiated with array
         # so we convert to list
         lp0 = VEC(list(self.landing_points[0])) - config["planet_center"]
