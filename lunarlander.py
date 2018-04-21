@@ -4,6 +4,7 @@ from sklearn.neural_network import MLPClassifier
 import pygame
 import numpy as np
 import math
+from copy import deepcopy
 VEC = pygame.math.Vector2
 
 
@@ -22,7 +23,7 @@ config = dict(
     land_speed=0.25,
     delta_angle=1,
     thrust=0.01,
-    dt=3, #0.05
+    dt=2, #0.05
     flat_index = 0,
     num_ships = 30
 )
@@ -37,8 +38,6 @@ class PygView( object ):
     
     def NeuralNet(self,ship_angle,dSurface,dLandStrip):
         
-        
-
         mlp = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
         mlp.fit(X_train,y_train)
         mlp.coefs_[0] = np.random.rand(3,4)*2-1
@@ -62,7 +61,7 @@ class PygView( object ):
     
 
     
-    def __init__(self, width=1000, height=1000, fps=30):
+    def __init__(self, width=1000, height=1000, fps=300):
         """Initialize pygame, window, background, font,...
         """
         pygame.init()
@@ -90,6 +89,7 @@ class PygView( object ):
         
         self.game_over = False
         self.stop_printing = False
+        self.generation = 0
     def reset(self):
         for i in range(config['num_ships']):
             self.ships[i] = space_ship( self.screen, self.landing_points )
@@ -122,6 +122,13 @@ class PygView( object ):
                 center=config['planet_center'],
                 flat_index = config['flat_index'])
             
+            #initialize ships
+            for i in range(config['num_ships']):
+                self.ships[i].physics(
+                    delta_angle=da,
+                    thrust=thrust,
+                    stop=self.ships[i].crashed )
+                
             All_Crashed = True
             for i in range(config['num_ships']):
                 '''
@@ -134,6 +141,8 @@ class PygView( object ):
                 elif(x==2):
                     ai_key = "up"
                 '''
+                ai_key = self.ships[i].predict()
+                
                 #ai_key = "none"
                 if keys[pygame.K_LEFT] or ai_key == "left":
                     da = -config["delta_angle"]
@@ -159,21 +168,26 @@ class PygView( object ):
     
                 #ship_angle,dSurface,dLandStrip = self.ships[i].NN_Inputs()
                 #print("Fitness: ", dLandStrip)
-                ai_key = self.ships[i].predict()
+
                 #ai_key = self.NeuralNet(1,2,3)
                 
                 # Did we land?
                 if(self.ships[i].check_on_planet() or self.ships[i].check_pos_screen()==False):
                     self.ships[i].crashed = True
                     
+                    
             #Check if all the ships have crashed
                 if(self.ships[i].crashed == False):
                     All_Crashed = False
             #If all the ships have crashed, evaluate all their fitness functions. Reset. 
+            
+            pygame.display.flip()
+            self.screen.blit( self.background, (0, 0) )
+            
             if(All_Crashed == True):  
                 self.game_over = True
                 self.updateWeights()
-                #self.reset()
+                self.resetShipLocs()
                 
                 
                 '''
@@ -190,46 +204,84 @@ class PygView( object ):
                     self.draw_text("YOU CRASHED!")
                 '''   
             # Not yet update the message on the screen
-            else:
-                '''
-                self.draw_text(
-                    "Orient:{}  Land:{} speed:{}".format(
-                        self.sp.check_orientation(),
-                        self.sp.check_land_spot(),
-                        self.sp.check_speed()
-                    ))
-                '''
 
-            pygame.display.flip()
-            self.screen.blit( self.background, (0, 0) )
 
         pygame.quit()
     
     def updateWeights(self): 
         scores = np.zeros(config['num_ships'])
         for i in range(config['num_ships']):
-            scores[i] = self.ships[i].fitness
+            scores[i] = deepcopy(self.ships[i].fitness)
         # Sort the scores from low value to high values
         # Low values indicate a better score (Closer to landing zone)
         scores_sort = scores.argsort()
         
         newShips = []
         
+        
         #Take best performing ships(Top 30%) and introduce directly to next round 
         num_bestShips = int(np.floor(config['num_ships']*0.3))
         for i in range(num_bestShips):    
-            newShips.append(self.ships[scores_sort[i]])
-            
+            newShips.append(deepcopy(self.ships[scores_sort[i]].mlp))
+            print("Best Ships:",self.ships[scores_sort[i]].fitness)
+        
+        
+        
         #Mutate top 10% of ships 2 times, then reintroduce
-        num_bestShips = int(np.floor(config['num_ships']*0.1))
-        for i in range(num_bestShips):   
+        for i in range(2):
+            num_bestShips = int(np.floor(config['num_ships']*0.1))
+            for i in range(num_bestShips):   
+                """We are going to combine all the weights into one 1D array. 
+                After chaning the weights, we need to reshape them back into their original form."""
+                #The MLP Neural network for this ship
+                NN = deepcopy(self.ships[scores_sort[i]].mlp)
+    
+                #Store shape information for reconstruction
+                s0 = len(NN.intercepts_[0])
+                s1 = len(NN.intercepts_[1])       
+                s2 = NN.coefs_[0].shape
+                s3 = NN.coefs_[1].shape
+                
+                #Combine all weights into one array 
+                intercepts= np.concatenate( (NN.intercepts_[0],NN.intercepts_[1]))
+                weights1 = NN.coefs_[0].flatten()
+                weights2 = NN.coefs_[1].flatten()
+                allWeights = np.concatenate((intercepts,weights1,weights2))
+                
+                #Mutate anywhere from 10% to %90 (need to multiply by 0.64 to get actual)
+                num_m = int((np.random.rand()*0.8+0.1)*len(allWeights))
+                #Array of indices to mutate (where 0.64 comes from)
+                m_inds = np.random.randint(0,len(allWeights),num_m)
+                
+                for ii in range(len(m_inds)):
+                    allWeights[m_inds[ii]] = np.random.rand()*2-1
+                
+                #Reconstruct
+                intrcpts = allWeights[range(len(intercepts))]
+                intercepts_0 = intrcpts[range(s0)]
+                intercepts_1 = intrcpts[range(s0,s1+s0)]
+                coefs_0 = allWeights[range(len(intercepts),len(weights1)+len(intercepts))].reshape(s2)
+                coefs_1 = allWeights[range(len(weights1)+len(intercepts),len(weights2)+len(weights1)+len(intercepts))].reshape(s3)
+                
+                #Add the new weights back into the neural network
+                NN.intercepts_[0] = intercepts_0
+                NN.intercepts_[1] = intercepts_1
+                NN.coefs_[0] = coefs_0
+                NN.coefs_[1] = coefs_1
+                #self.ships[scores_sort[i]].mlp = NN 
+                newShips.append(NN)
+            
+        #Mutate second best 10% of ships 1 time
+        num_bestShips = int(np.floor(config['num_ships']*0.2))
+        for i in range(int(num_bestShips/2),num_bestShips):   
             """We are going to combine all the weights into one 1D array. 
             After chaning the weights, we need to reshape them back into their original form."""
             #The MLP Neural network for this ship
-            NN = self.ships[scores_sort[i]].mlp
+            NN = deepcopy(self.ships[scores_sort[i]].mlp)
 
             #Store shape information for reconstruction
-            s1 = NN.intercepts_[0]       
+            s0 = len(NN.intercepts_[0])
+            s1 = len(NN.intercepts_[1])       
             s2 = NN.coefs_[0].shape
             s3 = NN.coefs_[1].shape
             
@@ -244,32 +296,101 @@ class PygView( object ):
             #Array of indices to mutate (where 0.64 comes from)
             m_inds = np.random.randint(0,len(allWeights),num_m)
             
-            for i in range(len(m_inds)):
-                allWeights[m_inds[i]] = np.random.rand()*2-1
+            for ii in range(len(m_inds)):
+                allWeights[m_inds[ii]] = np.random.rand()*2-1
             
             #Reconstruct
-            #intrcpts = allWeights[range(len(intercepts))]
-            #coefs_0 = intrcpts[NN.intercepts_[0]]
-            #self.ships[scores_sort[i]].mlp.coefs_[0] = 
+            intrcpts = allWeights[range(len(intercepts))]
+            intercepts_0 = intrcpts[range(s0)]
+            intercepts_1 = intrcpts[range(s0,s1+s0)]
+            coefs_0 = allWeights[range(len(intercepts),len(weights1)+len(intercepts))].reshape(s2)
+            coefs_1 = allWeights[range(len(weights1)+len(intercepts),len(weights2)+len(weights1)+len(intercepts))].reshape(s3)
             
-            #
-            
-            
-            ##weights = np.zeros(1 + self.ships[scores_sort[i]].mlp.coefs_[0] + self.ships[scores_sort[i]].mlp.coefs_[1])
-            ##weights[0] = self.ships[scores_sort[i]].mlp.bias
-            ##weights[range(1,)]
+            #Add the new weights back into the neural network
+            NN.intercepts_[0] = intercepts_0
+            NN.intercepts_[1] = intercepts_1
+            NN.coefs_[0] = coefs_0
+            NN.coefs_[1] = coefs_1
+            #self.ships[scores_sort[i]].mlp = NN 
+            newShips.append(NN)
+       
+        #Whatever ships we have left, just add random new ships. 
+        for i in range(int(config['num_ships'] - len(newShips))):
+            NN = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
+            NN.fit(X_train,y_train)       
+            #Initialize the MLP with random weights
+            NN.intercepts_[0] = np.random.rand(4)*2-1
+            NN.intercepts_[1] = np.random.rand(4)*2-1
+            NN.coefs_[0] = np.random.rand(3,4)*2-1
+            NN.coefs_[1] = np.random.rand(4,4)*2-1
+            newShips.append(NN)
+         
         
-        #Mutate second best ship 1 time
+        
+        for i in range(len(self.ships)):
+            self.ships[i].mlp = deepcopy(newShips[i])
+        
+        '''
+        NN = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
+        NN.fit(X_train,y_train)       
+        #Initialize the MLP with random weights
+        NN.intercepts_[0] = np.random.rand(4)*2-1
+        NN.intercepts_[1] = np.random.rand(4)*2-1
+        NN.coefs_[0] = np.random.rand(3,4)*2-1
+        NN.coefs_[1] = np.random.rand(4,4)*2-1
+        self.ships[0].mlp = NN
+        self.ships[0].debug = True
+        
+        NN = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
+        NN.fit(X_train,y_train)       
+        #Initialize the MLP with random weights
+        NN.intercepts_[0] = np.random.rand(4)*2-1
+        NN.intercepts_[1] = np.random.rand(4)*2-1
+        NN.coefs_[0] = np.random.rand(3,4)*2-1
+        NN.coefs_[1] = np.random.rand(4,4)*2-1
+        self.ships[1].mlp = NN
+        self.ships[1].debug = True
+        
+        total = 0
+        
+        """We are going to combine all the weights into one 1D array. 
+        After chaning the weights, we need to reshape them back into their original form."""
+        #The MLP Neural network for this ship
+        NN = self.ships[2].mlp
 
-
-
+        #Store shape information for reconstruction
+        s0 = len(NN.intercepts_[0])
+        s1 = len(NN.intercepts_[1])       
+        s2 = NN.coefs_[0].shape
+        s3 = NN.coefs_[1].shape
+        
+        #Combine all weights into one array 
+        intercepts= np.concatenate( (NN.intercepts_[0],NN.intercepts_[1]))
+        weights1 = NN.coefs_[0].flatten()
+        weights2 = NN.coefs_[1].flatten()
+        allWeights = np.concatenate((intercepts,weights1,weights2))
+        total = total + np.sum(allWeights)
+        
+        
+        print(total)
+        '''
+        
+        #Update the ships with the newships
+        #self.ships = newShips
+        print("Amount of new ships: ", len(newShips))
+        print("Generation: " , self.generation)
+        self.generation = self.generation + 1  
+        
+        """
+        for i in range(config['num_ships']):
+            self.ships[i] = newShips[i]
         
         if(self.stop_printing == False):
             print(scores)
             print(scores_sort)
         self.stop_printing = True
             #self.ships[i].mlp.coefs_
-            
+        """
             
 
     def draw_text( self, text ):
@@ -335,9 +456,13 @@ class space_ship:
         self.mlp = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
         self.mlp.fit(X_train,y_train)       
         #Initialize the MLP with random weights
+        
+        self.mlp.intercepts_[0] = np.random.rand(4)*2-1
+        self.mlp.intercepts_[1] = np.random.rand(4)*2-1
         self.mlp.coefs_[0] = np.random.rand(3,4)*2-1
         self.mlp.coefs_[1] = np.random.rand(4,4)*2-1
         
+        self.debug = False
         
     def predict(self):
         
@@ -395,8 +520,11 @@ class space_ship:
             color = colors.green
         else:
             color = colors.red
-
-        self.render( color )
+        if(self.debug == True):
+            
+            self.render( colors.red )
+        else:
+            self.render( color )
 
 # Begin methods to check win conditions
     def check_orientation(self):
@@ -450,7 +578,14 @@ class space_ship:
         ship_angle = self.angle%360
         dSurface = (ship_coors - config["planet_center"]).length() - config["planet_radius"]        
         dLandStrip = (ship_coors - land_coors).length()
-
+        
+        #Normalize inputs, want -1 to 1 range
+        ship_angle = ship_angle/360 * 2 - 1
+        maxD = VEC(1000,800).length()
+        dSurface = dSurface/maxD*2 - 1
+        dLandStrip = dLandStrip/maxD*2 - 1
+        
+        
         return ship_angle,dSurface,dLandStrip
         
 
