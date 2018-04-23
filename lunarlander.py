@@ -29,7 +29,8 @@ config = dict(
     flat_index = 0,
     num_ships = 10,
     planet_center = VEC( 700, 500 ),
-    planet_center2 = VEC( 100, 100 )
+    planet_center2 = VEC( 100, 100 ),
+    speed_multiplier = 1.35
 )
 
 #These are just used for initializing the scikitlearn Neural Networks
@@ -342,10 +343,6 @@ class PygView( object ):
         for i in range(config['num_ships']):
             sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
-
-        
-
-
             
         #Normalize the fitness scores 
         scores_sum = np.sum(scores_sort)
@@ -353,8 +350,8 @@ class PygView( object ):
         probabilities = scores_sort
 
         
-        #Take best performing ships(Top 30%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.3))
+        #Take best performing ships(Top 20%) and introduce directly to next round
+        num_bestShips = int(np.floor(config['num_ships']*0.2))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
         
@@ -548,7 +545,7 @@ class space_ship:
         if not stop:
             thrust_vector = VEC(1, 0).rotate(self.angle)*thrust
             # self.velocity = self.velocity + (gravity+thrust_vector)*dt
-            self.velocity = 2*VEC(1, 0).rotate(self.angle)
+            self.velocity = config['speed_multiplier']*VEC(1, 0).rotate(self.angle)
 
             self.pos = self.pos + self.velocity*dt
             self.angle += delta_angle
