@@ -289,9 +289,9 @@ class PygView( object ):
         return deepcopy(NN)
 
 
-    def updateWeights(self):   
+    def updateWeights(self):
         newShips = []
-        
+
         scores = np.zeros(config['num_ships'])
         for i in range(config['num_ships']):
             scores[i] = deepcopy(self.ships[i].fitness)
@@ -299,7 +299,7 @@ class PygView( object ):
         scores_sort = np.sort(scores)
         #Invert. Make highest scores to Lowest
         scores_sort = 1/scores_sort
-        
+
         if(scores_sort[0]> self.bestScore):
             self.bestScore = scores_sort[0]
         scores_sort_ind = scores.argsort()
@@ -316,7 +316,7 @@ class PygView( object ):
             allWeights = np.concatenate((intercepts,weights1,weights2))
             weightSum = deepcopy(np.sum(allWeights))
             print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
-        
+
         #########################
 
 
@@ -328,7 +328,7 @@ class PygView( object ):
                 scores[i] = deepcopy(self.prevFitness[i])
                 self.ships[i].mlp = deepcopy(self.prevShips[i])
                 self.ships[i].fitness = deepcopy(self.prevFitness[i])
-            
+
             scores_sort = np.sort(scores)
             #Invert. Make highest scores to Lowest
             scores_sort = 1/scores_sort
@@ -343,21 +343,21 @@ class PygView( object ):
             sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
 
-        
 
 
-            
-        #Normalize the fitness scores 
+
+
+        #Normalize the fitness scores
         scores_sum = np.sum(scores_sort)
         scores_sort = scores_sort/scores_sum
         probabilities = scores_sort
 
-        
+
         #Take best performing ships(Top 30%) and introduce directly to next round
         num_bestShips = int(np.floor(config['num_ships']*0.3))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
-        
+
 
         #Whatever ships we have left mutate + crossbreed
         for i in range(int(config['num_ships'] - len(newShips))):
@@ -371,9 +371,9 @@ class PygView( object ):
 
 
 
-        
 
-        
+
+
 
 
         '''
@@ -410,7 +410,7 @@ class PygView( object ):
 
         '''
         #Save the previous ships incase all the new ships are worse
-        self.prevShips = []  
+        self.prevShips = []
         self.prevFitness = []
         for i in range(len(self.ships)):
             self.prevShips.append( deepcopy(self.ships[i].mlp))
@@ -471,6 +471,11 @@ class space_ship:
         self.landing_points = landing_points
         self.crashed = False
         self.fitness = 0
+
+        # find mid point of landing
+        li = landing_points.shape[0]//2
+        self.mid_landing_point = VEC(list(self.landing_points[li]))
+
         # VEC can't be instantiated with array
         # so we convert to list
         lp0 = VEC(list(self.landing_points[0])) -  config["planet_center"]
@@ -486,17 +491,17 @@ class space_ship:
         self.mlp.intercepts_[1] = np.random.rand(1)*2-1
         self.mlp.coefs_[0] = np.random.rand(3,4)*2-1
         self.mlp.coefs_[1] = np.random.rand(4,1)*2-1
-
+        self.minDLandStrip = None
         self.debug = False
 
     def predict(self):
 
         #########Calculate Inputs for neural network##########
-        ship_coors = self.tip
+        ship_coors = self.pos
         land_coors = self.landing_points[0]
         ship_angle = self.angle%360
         dSurface = (ship_coors - config["planet_center"]).length() - config["planet_radius"]
-        dLandStrip = (ship_coors - land_coors).length()
+        dLandStrip = (ship_coors - self.mid_landing_point).length()
 
         #########Normalize inputs, want 0 to 1 range########
 
@@ -504,11 +509,12 @@ class space_ship:
         maxD = VEC(1000,800).length()
         dSurface = dSurface/maxD
         dLandStrip = dLandStrip/maxD
+        minDLandStrip = self.minDLandStrip/maxD
 
 
 
         ########Update the ships fitness value###############
-        self.fitness = dLandStrip
+        self.fitness = np.sqrt( dLandStrip**2 + minDLandStrip**2 )
 
         #########Make prediction based on inputs##########
         string_output = "none"
@@ -526,6 +532,7 @@ class space_ship:
 
         return string_output
 
+
     def render(self, color ):
 
         tip = VEC( 10, 0)
@@ -541,7 +548,7 @@ class space_ship:
         self.tip, self.left, self.right = tip, left, right
 
     def physics( self, thrust=0.0, delta_angle=0.0, stop=False ):
-        ppos =  config["planet_center"] 
+        ppos =  config["planet_center"]
 
         gravity = config["gravity"]*(self.pos-ppos).normalize()
         dt = config["dt"]
@@ -552,10 +559,17 @@ class space_ship:
 
             self.pos = self.pos + self.velocity*dt
             self.angle += delta_angle
+
         if thrust == 0:
             color = colors.green
         else:
             color = colors.red
+
+        if self.minDLandStrip is None:
+            self.minDLandStrip = (self.pos - self.mid_landing_point).length()
+        elif self.minDLandStrip > (self.pos - self.mid_landing_point).length():
+            self.minDlandStrip = (self.pos - self.mid_landing_point).length()
+
         self.render( color )
 
 # Begin methods to check win conditions
