@@ -30,7 +30,8 @@ config = dict(
     flat_index = 0,
     num_ships = 10,
     planet_center = VEC( 700, 500 ),
-    planet_center2 = VEC( 100, 100 )
+    planet_center2 = VEC( 100, 100 ),
+    speed_multiplier = 1.35
 )
 
 #These are just used for initializing the scikitlearn Neural Networks
@@ -211,18 +212,35 @@ class PygView( object ):
         allWeights = np.concatenate((weights1,weights2))
 
         #Mutate anywhere from 5% to %20
-        num_m_weights = int((np.random.rand()*0.10+0.05)*len(allWeights))
-        num_m_intercepts = int((np.random.rand()*0.10+0.05)*len(intercepts))
+        num_m_weights = 1;#int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_intercepts = int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
 
         #Array of indices to mutate
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
         m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
 
-        for ii in range(len(m_inds_w)):
-            allWeights[m_inds_w[ii]] = np.random.rand()*2-1
 
-        for ii in range(len(m_inds_i)):
-            intercepts[m_inds_i[ii]] = np.random.rand()*2-1
+        selector = np.random.rand()
+        if(selector > 0.5):
+            
+            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
+            for ii in range(len(m_inds_w)):
+                allWeights[m_inds_w[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+
+            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
+            if(num_m_intercepts!=0):
+                for ii in range(len(m_inds_i)):
+                    intercepts[m_inds_i[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+        else:
+
+            for ii in range(len(m_inds_w)):
+                allWeights[m_inds_w[ii]] = np.random.rand()*2-1
+
+            if(num_m_intercepts!=0):
+                for ii in range(len(m_inds_i)):
+                    intercepts[m_inds_i[ii]] = np.random.rand()*2-1
+
+
 
         #Reconstruct
         intercepts_0 = intercepts[range(s0)]
@@ -254,17 +272,17 @@ class PygView( object ):
         intercepts= np.concatenate( (NN.intercepts_[0],NN.intercepts_[1]))
         weights1 = NN.coefs_[0].flatten()
         weights2 = NN.coefs_[1].flatten()
-        allWeights = np.concatenate((intercepts,weights1,weights2))
+        allWeights = np.concatenate((weights1,weights2))
 
         intercepts2= np.concatenate( (NN2.intercepts_[0],NN2.intercepts_[1]))
         weights12 = NN2.coefs_[0].flatten()
         weights22 = NN2.coefs_[1].flatten()
-        allWeights2 = np.concatenate((intercepts2,weights12,weights22))
+        allWeights2 = np.concatenate((weights12,weights22))
 
         #Crossover anywhere from 20% to %60
         #Number of weights and intercepts to crossover
-        num_m_weights = int((np.random.rand()*0.4+0.2)*len(allWeights))
-        num_m_intercepts = int((np.random.rand()*0.4+0.2)*len(intercepts))
+        num_m_weights = 1 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
+        num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
 
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
         m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
@@ -272,8 +290,9 @@ class PygView( object ):
         for ii in range(len(m_inds_w)):
             allWeights[m_inds_w[ii]] = allWeights2[m_inds_w[ii]]
 
-        for ii in range(len(m_inds_i)):
-            intercepts[m_inds_i[ii]] = intercepts2[m_inds_i[ii]]
+        if(num_m_intercepts !=0):
+            for ii in range(len(m_inds_i)):
+                intercepts[m_inds_i[ii]] = intercepts2[m_inds_i[ii]]
 
         #Reconstruct
         intercepts_0 = intercepts[range(s0)]
@@ -369,22 +388,40 @@ class PygView( object ):
         for i in range(config['num_ships']):
             sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
+<<<<<<< HEAD
 
 
 
 
 
         #Normalize the fitness scores
+=======
+            
+        #Normalize the fitness scores 
+>>>>>>> Single-Ship
         scores_sum = np.sum(scores_sort)
         scores_sort = scores_sort/scores_sum
         probabilities = scores_sort
 
+<<<<<<< HEAD
 
         #Take best performing ships(Top 30%) and introduce directly to next round
         num_bestShips = int(np.floor(config['num_ships']*0.3))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
+=======
+        
+        #Take best performing ships(Top 20%) and introduce directly to next round
+        num_bestShips = int(np.floor(config['num_ships']*0.2))
+        for i in range(num_bestShips):
+            newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
+        
+        for i in range(2):
+            parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
+            theNewMlp1 = self.mutate(sortedShips[parents1[0]])
+            newShips.append(deepcopy(theNewMlp1))
+>>>>>>> Single-Ship
 
         #Whatever ships we have left mutate + crossbreed
         for i in range(int(config['num_ships'] - len(newShips))):
@@ -393,6 +430,7 @@ class PygView( object ):
 
             NN = self.crossover(sortedShips[parents[0]],sortedShips[parents[1]])
             theNewMlp = self.mutate(NN)
+            #theNewMlp = self.mutate(sortedShips[parents[0]])
 
             newShips.append(deepcopy(theNewMlp))
 
@@ -582,7 +620,7 @@ class space_ship:
         if not stop:
             thrust_vector = VEC(1, 0).rotate(self.angle)*thrust
             # self.velocity = self.velocity + (gravity+thrust_vector)*dt
-            self.velocity = 2*VEC(1, 0).rotate(self.angle)
+            self.velocity = config['speed_multiplier']*VEC(1, 0).rotate(self.angle)
 
             self.pos = self.pos + self.velocity*dt
             self.angle += delta_angle
