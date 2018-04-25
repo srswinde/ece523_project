@@ -222,7 +222,7 @@ class PygView( object ):
 
         selector = np.random.rand()
         if(selector > 0.5):
-            
+
             mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
             for ii in range(len(m_inds_w)):
                 allWeights[m_inds_w[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
@@ -388,40 +388,20 @@ class PygView( object ):
         for i in range(config['num_ships']):
             sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
-<<<<<<< HEAD
-
-
-
-
-
-        #Normalize the fitness scores
-=======
-            
-        #Normalize the fitness scores 
->>>>>>> Single-Ship
+       #Normalize the fitness scores
         scores_sum = np.sum(scores_sort)
         scores_sort = scores_sort/scores_sum
         probabilities = scores_sort
 
-<<<<<<< HEAD
-
-        #Take best performing ships(Top 30%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.3))
-        for i in range(num_bestShips):
-            newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
-
-=======
-        
         #Take best performing ships(Top 20%) and introduce directly to next round
         num_bestShips = int(np.floor(config['num_ships']*0.2))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
-        
+
         for i in range(2):
             parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
             theNewMlp1 = self.mutate(sortedShips[parents1[0]])
             newShips.append(deepcopy(theNewMlp1))
->>>>>>> Single-Ship
 
         #Whatever ships we have left mutate + crossbreed
         for i in range(int(config['num_ships'] - len(newShips))):
