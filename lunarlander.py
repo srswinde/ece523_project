@@ -7,6 +7,7 @@ import numpy as np
 import math
 #import pickle
 import time
+import pickle, datetime
 VEC = pygame.math.Vector2
 
 
@@ -306,22 +307,10 @@ class PygView( object ):
 
         ##### PRINT STUFF #####
         print("Generation: " , self.generation)
-        self.generation = self.generation + 1
-        for i in range(config['num_ships']):
-            #Get Weight value of best ship
-            NN1= deepcopy(self.ships[scores_sort_ind[i]].mlp)
-            intercepts= np.concatenate( (NN1.intercepts_[0],NN1.intercepts_[1]))
-            weights1 = NN1.coefs_[0].flatten()
-            weights2 = NN1.coefs_[1].flatten()
-            allWeights = np.concatenate((intercepts,weights1,weights2))
-            weightSum = deepcopy(np.sum(allWeights))
-            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
-
-        #########################
-
 
 
         #If we did worse than before, reject this generation
+        reject = False
         if(scores_sort[0]<self.bestScore):
             scores = np.zeros(config['num_ships'])
             for i in range(config['num_ships']):
@@ -333,7 +322,45 @@ class PygView( object ):
             #Invert. Make highest scores to Lowest
             scores_sort = 1/scores_sort
             print("Generation Rejected")
+            reject = True
         print("")
+
+
+        self.generation = self.generation + 1
+        for i in range(config['num_ships']):
+            #Get Weight value of best ship
+            NN1= deepcopy(self.ships[scores_sort_ind[i]].mlp)
+            intercepts= np.concatenate( (NN1.intercepts_[0],NN1.intercepts_[1]))
+            weights1 = NN1.coefs_[0].flatten()
+            weights2 = NN1.coefs_[1].flatten()
+            allWeights = np.concatenate((intercepts,weights1,weights2))
+            weightSum = deepcopy(np.sum(allWeights))
+
+
+            # pickle info of best ship
+            if scores_sort_ind[i] == 0 and not reject:
+                logdict = {
+                    'ship_num': i,
+                    'weights1': NN1.coefs_[0],
+                    'weights2': NN1.coefs_[1],
+                    'intercepts1': NN1.intercepts_[0],
+                    'intercepts2': NN1.intercepts_[1],
+                    'Generation': self.generation,
+                    'timestamp': datetime.datetime.now(),
+                    'score':self.ships[scores_sort_ind[i]].fitness
+                }
+
+                fname = "{}_best.pkl".format(datetime.datetime.now().isoformat().replace(':','-'))
+
+                with open(fname, 'wb') as pfd:
+
+                    pickle.dump( logdict, pfd )
+
+            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
+        print(self.bestScore)
+        #########################
+
+
 
         # Sort the scores from low value to high values
         # Low values indicate a better score (Closer to landing zone)
@@ -514,7 +541,7 @@ class space_ship:
 
 
         ########Update the ships fitness value###############
-        self.fitness = np.sqrt( dLandStrip**2 + minDLandStrip**2 )
+        self.fitness = dLandStrip
 
         #########Make prediction based on inputs##########
         string_output = "none"
