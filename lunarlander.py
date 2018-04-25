@@ -219,24 +219,26 @@ class PygView( object ):
         m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
 
 
-        mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
-        for ii in range(len(m_inds_w)):
-            allWeights[m_inds_w[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+        selector = np.random.rand()
+        if(selector > 0.5):
+            
+            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
+            for ii in range(len(m_inds_w)):
+                allWeights[m_inds_w[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
 
-        mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
-        if(num_m_intercepts!=0):
-            for ii in range(len(m_inds_i)):
-                intercepts[m_inds_i[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
+            if(num_m_intercepts!=0):
+                for ii in range(len(m_inds_i)):
+                    intercepts[m_inds_i[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+        else:
 
-        #Old Implementation
-        """
-        for ii in range(len(m_inds_w)):
-            allWeights[m_inds_w[ii]] = np.random.rand()*2-1
+            for ii in range(len(m_inds_w)):
+                allWeights[m_inds_w[ii]] = np.random.rand()*2-1
 
-        if(num_m_intercepts!=0):
-            for ii in range(len(m_inds_i)):
-                intercepts[m_inds_i[ii]] = np.random.rand()*2-1
-        """
+            if(num_m_intercepts!=0):
+                for ii in range(len(m_inds_i)):
+                    intercepts[m_inds_i[ii]] = np.random.rand()*2-1
+
 
 
         #Reconstruct
@@ -371,6 +373,10 @@ class PygView( object ):
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
         
+        for i in range(2):
+            parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
+            theNewMlp1 = self.mutate(sortedShips[parents1[0]])
+            newShips.append(deepcopy(theNewMlp1))
 
         #Whatever ships we have left mutate + crossbreed
         for i in range(int(config['num_ships'] - len(newShips))):
