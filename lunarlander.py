@@ -28,7 +28,7 @@ config = dict(
     thrust=0.01,
     dt=2, #0.05
     flat_index = 0,
-    num_ships = 10,
+    num_ships = 15,
     planet_center = VEC( 700, 500 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35
@@ -99,7 +99,7 @@ class PygView( object ):
         self.bestScore = 0
         self.prevShips = []
         self.prevFitness = []
-
+        self.logLst = []
 
     def reset(self):
         self.ship = space_ship( self.screen, self.landing_points )
@@ -118,78 +118,70 @@ class PygView( object ):
             da = 0
             thrust = 0.0
             #initialize ship
-            self.ship = self.ships[count]
-            self.ship.physics(
-                delta_angle=da,
-                thrust=thrust,
-                stop=self.ship.crashed)
-            start_time = time.time()
-            while self.ship.crashed == False:
-                if(time.time()-start_time > 3):
-                    self.ship.crashed = True
-                #while self.ship.crashed == False:
-                da = 0
-                thrust = 0.0
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        running = False
-                        self.ship.crashed = True
-                    elif event.type == pygame.KEYDOWN:
-                        if event.key == pygame.K_ESCAPE:
-                            running = False
-                            self.ship.crashed = True
-                        if event.key == pygame.K_r:
-                            self.reset()
-                            #self.resetShipLocs()
-
-                keys = pygame.key.get_pressed()
-
+            #self.ship = self.ships[count]
+            
+            for j in range(config['num_ships']):
+               self.ships[j].physics(
+                    delta_angle=da,
+                    thrust=thrust,
+                    stop=self.ships[j].crashed)
+            start_time = time.time() 
+            all_crashed = False
+            while all_crashed == False:
+                self.draw_text("Generation:{}".format(self.generation))
                 # Render the planet
                 self.do_planet(
                     radius=config["planet_radius"],
                     center=config['planet_center'],
                     flat_index = config['flat_index'])
 
-                ai_key = self.ship.predict()
+                for j in range(config['num_ships']):
+                    if(time.time()-start_time > 6):
+                        self.ships[j].crashed = True
+                    for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            running = False
+                            all_crashed = True
+                        elif event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_ESCAPE:
+                                running = False
+                                all_crashed = True
+                            if event.key == pygame.K_r:
+                                self.reset()
+                                #self.resetShipLocs()
+                    
+                    keys = pygame.key.get_pressed()
 
-                if keys[pygame.K_LEFT] or ai_key == "left" or ai_key == "up":
-                    da = -config["delta_angle"]
-
-                if keys[pygame.K_RIGHT] or ai_key == "right" or ai_key == "none":
-                    da = config["delta_angle"]
-
-                if True: #keys[pygame.K_UP] or ai_key == "up"
+                    da = 0
+                    thrust = 0.0
+                    ai_key = self.ships[j].predict()
+                    if ai_key == "left":
+                        da = -config["delta_angle"]
+                    if ai_key == "right":
+                        da = config["delta_angle"]
                     thrust = config["thrust"]
+                    # Do the physics on the spaceship
+                    self.ships[j].physics(
+                        delta_angle=da,
+                        thrust=thrust,
+                        stop=self.ships[j].crashed )
+                    # Did we land?
+                    if(self.ships[j].check_on_planet() or self.ships[j].check_pos_screen()==False):
+                        self.ships[j].crashed = True
 
-                self.draw_text(
-                    "Ship:{}  Generation:{} Key:{}".format(
-                        count,
-                        self.generation,
-                        ai_key
-                    ))
-
-                # Do the physics on the spaceship
-                self.ship.physics(
-                    delta_angle=da,
-                    thrust=thrust,
-                    stop=self.ship.crashed )
-
-
-                # Did we land?
-                if(self.ship.check_on_planet() or self.ship.check_pos_screen()==False):
-                    self.ship.crashed = True
-
-                #Run this again to update fitness
-                _ = self.ship.predict()
+                    #Run this again to update fitness
+                    _ = self.ships[j].predict()
 
                 pygame.display.flip()
                 self.screen.blit( self.background, (0, 0) )
 
-            self.ships[count] = self.ship
-            count = count + 1
-            if(count == config['num_ships']):
-                self.updateWeights()
-                count = 0
+                all_crashed = True
+                for j in range(config['num_ships']):
+                    if(self.ships[j].crashed == False):
+                        all_crashed = False
+
+
+            self.updateWeights()
             self.resetShipLocs()
         pygame.quit()
 
@@ -311,7 +303,7 @@ class PygView( object ):
 
     def updateWeights(self):
         newShips = []
-
+        
         scores = np.zeros(config['num_ships'])
         for i in range(config['num_ships']):
             scores[i] = deepcopy(self.ships[i].fitness)
@@ -368,17 +360,16 @@ class PygView( object ):
                     'timestamp': datetime.datetime.now(),
                     'score':self.ships[scores_sort_ind[i]].fitness
                 }
-
-                fname = "{}_best.pkl".format(datetime.datetime.now().isoformat().replace(':','-'))
+                self.logLst.append(logdict)
+                fname = "best.pkl"
+                #fname = "{}_best.pkl".format(datetime.datetime.now().isoformat().replace(':','-'))
 
                 with open(fname, 'wb') as pfd:
-
-                    pickle.dump( logdict, pfd )
+                    pickle.dump(  self.logLst, pfd )
 
             print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
         print(self.bestScore)
         #########################
-
 
 
         # Sort the scores from low value to high values
@@ -398,6 +389,7 @@ class PygView( object ):
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
+        #Take two parents, mutate them, and introduce to next round (Skip crossover)
         for i in range(2):
             parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
             theNewMlp1 = self.mutate(sortedShips[parents1[0]])
@@ -414,46 +406,8 @@ class PygView( object ):
 
             newShips.append(deepcopy(theNewMlp))
 
+   
 
-
-
-
-
-
-
-        '''
-        #Take best performing ships(Top 30%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.3))
-        for i in range(num_bestShips):
-            newShips.append(deepcopy(self.ships[scores_sort[i]].mlp))
-
-        #Mutate top 10% of ships, then reintroduce
-        for qq in range(3):
-            num_bestShips = int(np.floor(config['num_ships']*0.1))
-            for i in range(num_bestShips):
-                NN = self.mutate(self.ships[scores_sort[i]].mlp)
-                newShips.append(deepcopy(NN))
-
-        NN = self.crossover(newShips[0],newShips[1])
-        newShips.append(deepcopy(NN))
-        NN = self.crossover(newShips[0],newShips[2])
-        newShips.append(deepcopy(NN))
-        NN = self.crossover(newShips[1],newShips[2])
-        newShips.append(deepcopy(NN))
-
-
-        #Whatever ships we have left, just add random new ships.
-        for i in range(int(config['num_ships'] - len(newShips))):
-            NN = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
-            NN.fit(X_train,y_train)
-            #Initialize the MLP with random weights
-            NN.intercepts_[0] = np.random.rand(4)*2-1
-            NN.intercepts_[1] = np.random.rand(1)*2-1
-            NN.coefs_[0] = np.random.rand(3,4)*2-1
-            NN.coefs_[1] = np.random.rand(4,1)*2-1
-            newShips.append(deepcopy(NN))
-
-        '''
         #Save the previous ships incase all the new ships are worse
         self.prevShips = []
         self.prevFitness = []
@@ -461,7 +415,7 @@ class PygView( object ):
             self.prevShips.append( deepcopy(self.ships[i].mlp))
             self.prevFitness.append( deepcopy(self.ships[i].fitness))
             self.ships[i].mlp = deepcopy(newShips[i])
-
+    
 
     def draw_text( self, text ):
         """
@@ -500,10 +454,10 @@ class PygView( object ):
         """Reset the ship locations, but not their neural net weights"""
 
         for i in range(config['num_ships']):
-            self.ship.pos = VEC((150, 150))
-            self.ship.angle = 90
-            self.ship.velocity = VEC(0, 0)
-            self.ship.crashed = False
+            self.ships[i].pos = VEC((150, 150))
+            self.ships[i].angle = 90
+            self.ships[i].velocity = VEC(0, 0)
+            self.ships[i].crashed = False
             #self.ship.fitness = 0
 
 class space_ship:
