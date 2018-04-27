@@ -138,6 +138,10 @@ class PygView( object ):
             if(self.ship.check_on_planet() or self.ship.check_pos_screen()==False):
                 self.ship.crashed = True
 
+            dist = self.circleIntercept()
+
+            self.draw_text("Tip:{} Back:{} dist{}".format(self.ship.tip,self.ship.back,dist))
+
             pygame.display.flip()
             self.screen.blit( self.background, (0, 0) )
 
@@ -149,236 +153,58 @@ class PygView( object ):
             #self.resetShipLocs()
         pygame.quit()
 
-    def mutate(self,mlp):
-        """We are going to combine all the weights into one 1D array.
-        After chaning the weights, we need to reshape them back into their original form."""
-        #The MLP Neural network for this ship
-        NN = deepcopy(mlp)
-
-        #Store shape information for reconstruction
-        s0 = len(NN.intercepts_[0])
-        s1 = len(NN.intercepts_[1])
-        s2 = NN.coefs_[0].shape
-        s3 = NN.coefs_[1].shape
-
-        #Combine all weights into one array
-        intercepts= np.concatenate( (NN.intercepts_[0],NN.intercepts_[1]))
-        weights1 = NN.coefs_[0].flatten()
-        weights2 = NN.coefs_[1].flatten()
-        allWeights = np.concatenate((weights1,weights2))
-
-        #Mutate anywhere from 5% to %20
-        num_m_weights = 1;#int((np.random.rand()*0.10+0.05)*len(allWeights))
-        num_m_intercepts = int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
-
-        #Array of indices to mutate
-        m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
-        m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
-
-
-        selector = np.random.rand()
-        if(selector > 0.5):
-
-            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
-            for ii in range(len(m_inds_w)):
-                allWeights[m_inds_w[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
-
-            mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
-            if(num_m_intercepts!=0):
-                for ii in range(len(m_inds_i)):
-                    intercepts[m_inds_i[ii]] = allWeights[m_inds_w[ii]] * mutateFactor
+    def circleIntercept(self):
+        # https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle
+        
+        
+        #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
+        m = self.ship.tip - self.ship.back      
+        
+        #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
+        if(m[0]==0):
+            m=999999
         else:
+            m = m[1]/m[0]      
+        c = self.ship.tip[1] - m * self.ship.tip[0]
+        p = config['planet_center'][0]
+        q = config['planet_center'][1]
+        r = config['planet_radius']
 
-            for ii in range(len(m_inds_w)):
-                allWeights[m_inds_w[ii]] = np.random.rand()*2-1
-
-            if(num_m_intercepts!=0):
-                for ii in range(len(m_inds_i)):
-                    intercepts[m_inds_i[ii]] = np.random.rand()*2-1
-
-
-
-        #Reconstruct
-        intercepts_0 = intercepts[range(s0)]
-        intercepts_1 = intercepts[range(s0,s1+s0)]
-        coefs_0 = allWeights[range(len(weights1))].reshape(s2)
-        coefs_1 = allWeights[range(len(weights1),len(weights2)+len(weights1))].reshape(s3)
-
-        #Add the new weights back into the neural network
-        NN.intercepts_[0] = intercepts_0
-        NN.intercepts_[1] = intercepts_1
-        NN.coefs_[0] = coefs_0
-        NN.coefs_[1] = coefs_1
-
-        return deepcopy(NN)
-
-    def crossover(self,mlp1,mlp2):
-        """We are going to combine all the weights into one 1D array.
-        After chaning the weights, we need to reshape them back into their original form."""
-        #The MLP Neural network for this ship
-        NN = deepcopy(mlp1)
-        NN2 = deepcopy(mlp2)
-
-        #Store shape information for reconstruction
-        s0 = len(NN.intercepts_[0])
-        s1 = len(NN.intercepts_[1])
-        s2 = NN.coefs_[0].shape
-        s3 = NN.coefs_[1].shape
-
-        intercepts= np.concatenate( (NN.intercepts_[0],NN.intercepts_[1]))
-        weights1 = NN.coefs_[0].flatten()
-        weights2 = NN.coefs_[1].flatten()
-        allWeights = np.concatenate((weights1,weights2))
-
-        intercepts2= np.concatenate( (NN2.intercepts_[0],NN2.intercepts_[1]))
-        weights12 = NN2.coefs_[0].flatten()
-        weights22 = NN2.coefs_[1].flatten()
-        allWeights2 = np.concatenate((weights12,weights22))
-
-        #Crossover anywhere from 20% to %60
-        #Number of weights and intercepts to crossover
-        num_m_weights = 1 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
-        num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
-
-        m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
-        m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
-
-        for ii in range(len(m_inds_w)):
-            allWeights[m_inds_w[ii]] = allWeights2[m_inds_w[ii]]
-
-        if(num_m_intercepts !=0):
-            for ii in range(len(m_inds_i)):
-                intercepts[m_inds_i[ii]] = intercepts2[m_inds_i[ii]]
-
-        #Reconstruct
-        intercepts_0 = intercepts[range(s0)]
-        intercepts_1 = intercepts[range(s0,s1+s0)]
-        coefs_0 = allWeights[range(len(weights1))].reshape(s2)
-        coefs_1 = allWeights[range(len(weights1),len(weights2)+len(weights1))].reshape(s3)
-
-        #Add the new weights back into the neural network
-        NN.intercepts_[0] = intercepts_0
-        NN.intercepts_[1] = intercepts_1
-        NN.coefs_[0] = coefs_0
-        NN.coefs_[1] = coefs_1
-
-        return deepcopy(NN)
-
-
-    def updateWeights(self):
-        newShips = []
+        A = m**2 + 1
+        B = 2*(m*c - m*q - p)
+        C = q**2-r**2+p**2-2*c*q+c**2
         
-        scores = np.zeros(config['num_ships'])
-        for i in range(config['num_ships']):
-            scores[i] = deepcopy(self.ships[i].fitness)
+        #If B^2−4AC<0 then the line misses the circle
+        #If B^2−4AC=0 then the line is tangent to the circle.
+        #If B^2−4AC>0 then the line meets the circle in two distinct points.
+        if(B**2 - 4*A*C < 0):
+            x = -1
+            y = -1
+            dist = -1
+        elif(B**2 - 4*A*C == 0 ):
+            x = -B/(2*A)
+            y = m*x + c
+            dist = (VEC(x,y) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
+        else:
+            x1 = (-B + np.sqrt(B**2 - 4*A*C))/(2*A)
+            x2 = (-B - np.sqrt(B**2 - 4*A*C))/(2*A)
+            y1 = m*x1 + c
+            y2 = m*x2 + c
 
-        scores_sort = np.sort(scores)
-        #Invert. Make highest scores to Lowest
-        scores_sort = 1/scores_sort
+            l1 = (VEC(x1,y1) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
+            l2 = (VEC(x2,y2) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
 
-        if(scores_sort[0]> self.bestScore):
-            self.bestScore = scores_sort[0]
-        scores_sort_ind = scores.argsort()
+            #Pick the point on the circle that is closest to the ship
+            if(l1 < l2): 
+                x = x1
+                y = y1
+                dist = l1
+            else:
+                x = x2
+                y = y2
+                dist = l2
+        return dist
 
-        ##### PRINT STUFF #####
-        print("")
-        print("Generation: " , self.generation)
-
-
-        #If we did worse than before, reject this generation
-        reject = False
-        if(scores_sort[0]<self.bestScore):
-            scores = np.zeros(config['num_ships'])
-            for i in range(config['num_ships']):
-                scores[i] = deepcopy(self.prevFitness[i])
-                self.ships[i].mlp = deepcopy(self.prevShips[i])
-                self.ships[i].fitness = deepcopy(self.prevFitness[i])
-
-            scores_sort = np.sort(scores)
-            #Invert. Make highest scores to Lowest
-            scores_sort = 1/scores_sort
-            print("Generation Rejected")
-            reject = True
-        
-        self.generation = self.generation + 1
-        for i in range(config['num_ships']):
-            #Get Weight value of best ship
-            NN1= deepcopy(self.ships[scores_sort_ind[i]].mlp)
-            intercepts= np.concatenate( (NN1.intercepts_[0],NN1.intercepts_[1]))
-            weights1 = NN1.coefs_[0].flatten()
-            weights2 = NN1.coefs_[1].flatten()
-            allWeights = np.concatenate((intercepts,weights1,weights2))
-            weightSum = deepcopy(np.sum(allWeights))
-
-
-            # pickle info of best ship
-            if scores_sort_ind[i] == 0 and not reject:
-                logdict = {
-                    'ship_num': i,
-                    'weights1': NN1.coefs_[0],
-                    'weights2': NN1.coefs_[1],
-                    'intercepts1': NN1.intercepts_[0],
-                    'intercepts2': NN1.intercepts_[1],
-                    'Generation': self.generation,
-                    'timestamp': datetime.datetime.now(),
-                    'score':self.ships[scores_sort_ind[i]].fitness
-                }
-                self.logLst.append(logdict)
-                fname = "best.pkl"
-                #fname = "{}_best.pkl".format(datetime.datetime.now().isoformat().replace(':','-'))
-
-                with open(fname, 'wb') as pfd:
-                    pickle.dump(  self.logLst, pfd )
-
-            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
-        #print(self.bestScore)
-        #########################
-
-
-        # Sort the scores from low value to high values
-        # Low values indicate a better score (Closer to landing zone)
-        scores_sort_ind = scores.argsort()
-        sortedShips = []
-        for i in range(config['num_ships']):
-            sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
-
-       #Normalize the fitness scores
-        scores_sum = np.sum(scores_sort)
-        scores_sort = scores_sort/scores_sum
-        probabilities = scores_sort
-
-        #Take best performing ships(Top 20%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.2))
-        for i in range(num_bestShips):
-            newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
-
-        #Take two parents, mutate them, and introduce to next round (Skip crossover)
-        for i in range(2):
-            parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
-            theNewMlp1 = self.mutate(sortedShips[parents1[0]])
-            newShips.append(deepcopy(theNewMlp1))
-
-        #Whatever ships we have left mutate + crossbreed
-        for i in range(int(config['num_ships'] - len(newShips))):
-            #Select two parents
-            parents = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
-
-            NN = self.crossover(sortedShips[parents[0]],sortedShips[parents[1]])
-            theNewMlp = self.mutate(NN)
-            #theNewMlp = self.mutate(sortedShips[parents[0]])
-
-            newShips.append(deepcopy(theNewMlp))
-
-   
-
-        #Save the previous ships incase all the new ships are worse
-        self.prevShips = []
-        self.prevFitness = []
-        for i in range(len(self.ships)):
-            self.prevShips.append( deepcopy(self.ships[i].mlp))
-            self.prevFitness.append( deepcopy(self.ships[i].fitness))
-            self.ships[i].mlp = deepcopy(newShips[i])
-    
 
     def draw_text( self, text ):
         """
@@ -461,41 +287,7 @@ class space_ship:
         self.minDLandStrip = None
         self.debug = False
 
-    def updateFitness(self):
-        ########Update the ships fitness value###############
-        # Fitness is defined as the distance from the landing strip, dLandStrip
-        self.fitness = self.inputs[2]
-
-    def predict(self):
-
-        #########Calculate Inputs for neural network##########
-        ship_coors = self.pos
-        land_coors = self.landing_points[0]
-        ship_angle = self.angle%360
-        dSurface = (ship_coors - config["planet_center"]).length() - config["planet_radius"]
-        dLandStrip = (ship_coors - self.mid_landing_point).length()
-
-        #########Normalize inputs, want 0 to 1 range########
-
-        ship_angle = ship_angle/360
-        maxD = VEC(1000,800).length()
-        dSurface = dSurface/maxD
-        dLandStrip = dLandStrip/maxD
-        minDLandStrip = self.minDLandStrip/maxD
-
-        #########Make prediction based on inputs##########
-        string_output = "none"
-        X = np.array([ship_angle,dSurface,dLandStrip])
-        self.inputs = X 
-        output = self.mlp.predict(X.reshape(1,-1))[0]
-
-        if(output==0):
-            string_output = "left"
-        elif(output==1):
-            string_output = "right"
-        return string_output
-
-
+   
     def render(self, color ):
 
         tip = VEC( 10, 0)
@@ -506,6 +298,7 @@ class space_ship:
             pt.rotate_ip( self.angle )
             pt += self.pos
         pygame.draw.polygon(self.screen, color, ( tip, left, right ) )
+        self.back = (left + right)/2
 
         self.tip, self.left, self.right = tip, left, right
 
