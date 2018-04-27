@@ -595,22 +595,7 @@ class space_ship:
                 return True
         return False
 
-    def NN_Inputs(self):
-        ship_coors = self.tip
-        land_coors = self.landing_points[0]
 
-        ship_angle = self.angle%360
-        dSurface = (ship_coors - config["planet_center"]).length() - config["planet_radius"]
-        dLandStrip = (ship_coors - land_coors).length()
-
-        #Normalize inputs, want -1 to 1 range
-        ship_angle = ship_angle/360 * 2 - 1
-        maxD = VEC(1000,800).length()
-        dSurface = dSurface/maxD*2 - 1
-        dLandStrip = dLandStrip/maxD*2 - 1
-
-
-        return ship_angle,dSurface,dLandStrip
 
 
 

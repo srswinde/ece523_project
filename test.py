@@ -25,9 +25,9 @@ config = dict(
     delta_angle=1,
     thrust=0.01,
     dt=2, #0.05
-    flat_index = 300,
+    flat_index = 0,
     num_ships = 30,
-    planet_center = VEC( 700, 100 ),
+    planet_center = VEC( 500, 200 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
     time_limit = 6
@@ -111,10 +111,10 @@ class PygView( object ):
             #self.ship = self.ships[count]
             
             for j in range(config['num_ships']):
-               self.ships[j].physics(
-                    delta_angle=da,
-                    thrust=thrust,
-                    stop=self.ships[j].crashed)
+            self.ships[j].physics(
+                delta_angle=da,
+                thrust=thrust,
+                stop=self.ships[j].crashed)
             start_time = time.time() 
             all_crashed = False
             while all_crashed == False:
