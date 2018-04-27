@@ -154,17 +154,32 @@ class PygView( object ):
         pygame.quit()
 
     def circleIntercept(self):
-        # https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle
-        
+        """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
         
         #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
-        m = self.ship.tip - self.ship.back      
+        direction = 3
         
+        if(direction ==0):
+            #straight
+            m = self.ship.tip - self.ship.back            
+        if(direction == 1):
+            #left
+            m = self.ship.left - self.ship.right      
+        if(direction == 2):
+            #right
+            m = self.ship.right - self.ship.left     
+        if(direction == 3):
+            #left-staight
+            m = (self.ship.left + self.ship.tip)/2 - self.ship.right 
+        if(direction == 4):
+            #right-straight
+            m = (self.ship.right + self.ship.tip)/2 - self.ship.left 
         #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
         if(m[0]==0):
             m=999999
         else:
-            m = m[1]/m[0]      
+            m = m[1]/m[0]     
+
         c = self.ship.tip[1] - m * self.ship.tip[0]
         p = config['planet_center'][0]
         q = config['planet_center'][1]
@@ -203,6 +218,29 @@ class PygView( object ):
                 x = x2
                 y = y2
                 dist = l2
+        
+        #Check to make sure the line intercepts the circle on the front side of the ship
+        if(dist != -1):
+            if(direction ==0):
+                #straight
+                if (self.ship.back - VEC(x,y)).length() < (self.ship.tip - VEC(x,y)).length():
+                    dist = -1          
+            if(direction == 1):
+                #left
+                if (self.ship.right - VEC(x,y)).length() < (self.ship.left - VEC(x,y)).length():
+                    dist = -1      
+            if(direction == 2):
+                #right
+                if (self.ship.left - VEC(x,y)).length() < (self.ship.right - VEC(x,y)).length():
+                    dist = -1      
+            if(direction == 3):
+                #left-staight
+                if (self.ship.right - VEC(x,y)).length() < ((self.ship.left + self.ship.tip)/2 - VEC(x,y)).length():
+                    dist = -1  
+            if(direction == 4):
+                #right-straight
+                if (self.ship.left - VEC(x,y)).length() < ((self.ship.right + self.ship.tip)/2 - VEC(x,y)).length():
+                    dist = -1             
         return dist
 
 
@@ -291,8 +329,8 @@ class space_ship:
     def render(self, color ):
 
         tip = VEC( 10, 0)
-        left = VEC(-5, 5)
-        right = VEC(-5, -5)
+        left = VEC(-5, -5)
+        right = VEC(-5, 5)
 
         for pt in (tip, right, left):
             pt.rotate_ip( self.angle )
