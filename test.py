@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from copy import deepcopy
 from sklearn.neural_network import MLPClassifier
 import pygame
@@ -27,9 +25,9 @@ config = dict(
     delta_angle=1,
     thrust=0.01,
     dt=2, #0.05
-    flat_index = 0,
+    flat_index = 300,
     num_ships = 30,
-    planet_center = VEC( 700, 500 ),
+    planet_center = VEC( 700, 100 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
     time_limit = 6
@@ -82,6 +80,18 @@ class PygView( object ):
         self.prevShips = []
         self.prevFitness = []
         self.logLst = []
+        
+        self.loadShips()
+
+    def loadShips(self):
+        with open('goodShips.pkl', 'rb') as f:
+            lShipData = pickle.load(f)
+        
+        for i in range(config['num_ships']):
+            self.ships[i].mlp.intercepts_[0] = lShipData[-1]['intercepts1']
+            self.ships[i].mlp.intercepts_[1] = lShipData[-1]['intercepts2']
+            self.ships[i].mlp.coefs_[0] = lShipData[-1]['weights1']
+            self.ships[i].mlp.coefs_[1] = lShipData[-1]['weights2']
 
     def reset(self):
         self.ship = space_ship( self.screen, self.landing_points )
@@ -161,7 +171,7 @@ class PygView( object ):
                         all_crashed = False
 
 
-            self.updateWeights()
+            #self.updateWeights()
             self.resetShipLocs()
         pygame.quit()
 
