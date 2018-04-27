@@ -32,18 +32,19 @@ config = dict(
     planet_center = VEC( 700, 500 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
-    time_limit = 8, 
+    time_limit = 6, 
     render = True
 )
 
 #Neural Network Structure
 n_inputs = 3
 n_hidden = 4
+n_output = 1
 
 #These are used for initializing the scikitlearn Neural Networks
 X = np.zeros(n_inputs)
 X_train = np.array([X,X])
-y_train = np.array([0,1])
+y_train = np.array(range(n_output+1))  #np.array([0,1])
 
 
 
@@ -472,9 +473,9 @@ class space_ship:
         #Initialize the MLP with random weights
 
         self.mlp.intercepts_[0] = np.random.rand(n_hidden)*2-1
-        self.mlp.intercepts_[1] = np.random.rand(1)*2-1
+        self.mlp.intercepts_[1] = np.random.rand(n_output)*2-1
         self.mlp.coefs_[0] = np.random.rand(n_inputs,n_hidden)*2-1
-        self.mlp.coefs_[1] = np.random.rand(n_hidden,1)*2-1
+        self.mlp.coefs_[1] = np.random.rand(n_hidden,n_output)*2-1
         self.minDLandStrip = None
         self.debug = False
 
@@ -499,11 +500,6 @@ class space_ship:
         dSurface = dSurface/maxD
         dLandStrip = dLandStrip/maxD
         minDLandStrip = self.minDLandStrip/maxD
-
-
-
-        ########Update the ships fitness value###############
-        self.fitness = dLandStrip
 
         #########Make prediction based on inputs##########
         string_output = "none"
