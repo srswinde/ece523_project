@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+This version of the game doesn't use the genetic algorithm. It just generates random ships each generation, and keeps the best one. 
+We can run this, then compare our genetic algorithm to it. 
+We should always be doing better than this with our genetic algorithm.
+"""
+
 
 from copy import deepcopy
 from sklearn.neural_network import MLPClassifier
@@ -28,30 +34,48 @@ config = dict(
     thrust=0.01,
     dt=2, #0.05
     flat_index = 0,
-    num_ships = 30,
+    num_ships = 15,
     planet_center = VEC( 700, 500 ),
     planet_center2 = VEC( 100, 100 ),
-    speed_multiplier = 1.35,
-    time_limit = 8, 
-    render = True
+    speed_multiplier = 1.35
 )
 
-#Neural Network Structure
-n_inputs = 3
-n_hidden = 4
-
-#These are used for initializing the scikitlearn Neural Networks
-X = np.zeros(n_inputs)
-X_train = np.array([X,X])
+#These are just used for initializing the scikitlearn Neural Networks
+X_train = np.array([[0,0,0],[0,0,0]])
 y_train = np.array([0,1])
 
 
 
 class PygView( object ):
+
+    def NeuralNet(self,ship_angle,dSurface,dLandStrip):
+
+        mlp = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
+        mlp.fit(X_train,y_train)
+        mlp.coefs_[0] = np.random.rand(3,4)*2-1
+        mlp.coefs_[1] = np.random.rand(4,4)*2-1
+
+        string_output = "none"
+
+        X = np.array([ship_angle,dSurface,dLandStrip])
+        output = mlp.predict(X.reshape(1,-1))
+
+        if(output==0):
+            string_output = "none"
+        elif(output==1):
+            string_output = "left"
+        elif(output==2):
+            string_output = "right"
+        elif(output==3):
+            string_output = "up"
+
+        return string_output
+
+
+
     def __init__(self, width=1000, height=1000, fps=60):
         """Initialize pygame, window, background, font,...
         """
-        
         pygame.init()
         pygame.display.set_caption("Press ESC to quit")
         self.width = width
@@ -93,6 +117,8 @@ class PygView( object ):
         """
         running = True
         ai_key = "none"
+
+
         count = 0
         while running:
             da = 0
@@ -116,7 +142,7 @@ class PygView( object ):
                     flat_index = config['flat_index'])
 
                 for j in range(config['num_ships']):
-                    if(time.time()-start_time > config['time_limit']):
+                    if(time.time()-start_time > 6):
                         self.ships[j].crashed = True
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
@@ -149,12 +175,11 @@ class PygView( object ):
                     if(self.ships[j].check_on_planet() or self.ships[j].check_pos_screen()==False):
                         self.ships[j].crashed = True
 
-                    #Run this to update fitness
-                    self.ships[j].updateFitness()
+                    #Run this again to update fitness
+                    _ = self.ships[j].predict()
 
-                if config['render']==True:
-                    pygame.display.flip()
-                    self.screen.blit( self.background, (0, 0) )
+                pygame.display.flip()
+                self.screen.blit( self.background, (0, 0) )
 
                 all_crashed = True
                 for j in range(config['num_ships']):
@@ -298,7 +323,6 @@ class PygView( object ):
         scores_sort_ind = scores.argsort()
 
         ##### PRINT STUFF #####
-        print("")
         print("Generation: " , self.generation)
 
 
@@ -316,7 +340,9 @@ class PygView( object ):
             scores_sort = 1/scores_sort
             print("Generation Rejected")
             reject = True
-        
+        print("")
+
+
         self.generation = self.generation + 1
         for i in range(config['num_ships']):
             #Get Weight value of best ship
@@ -348,7 +374,7 @@ class PygView( object ):
                     pickle.dump(  self.logLst, pfd )
 
             print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
-        #print(self.bestScore)
+        print(self.bestScore)
         #########################
 
 
@@ -368,7 +394,7 @@ class PygView( object ):
         num_bestShips = int(np.floor(config['num_ships']*0.2))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
-
+        """
         #Take two parents, mutate them, and introduce to next round (Skip crossover)
         for i in range(2):
             parents1 = np.random.choice(range(config['num_ships']),size = 2, replace = False,p=probabilities)
@@ -395,6 +421,18 @@ class PygView( object ):
             self.prevShips.append( deepcopy(self.ships[i].mlp))
             self.prevFitness.append( deepcopy(self.ships[i].fitness))
             self.ships[i].mlp = deepcopy(newShips[i])
+
+        """
+        #Whatever ships we have left, just add random new ships. 
+        for i in range(int(config['num_ships'] - len(newShips))):
+            NN = MLPClassifier(hidden_layer_sizes=(4),max_iter=1)
+            NN.fit(X_train,y_train)       
+            #Initialize the MLP with random weights
+            NN.intercepts_[0] = np.random.rand(4)*2-1
+            NN.intercepts_[1] = np.random.rand(4)*2-1
+            NN.coefs_[0] = np.random.rand(3,4)*2-1
+            NN.coefs_[1] = np.random.rand(4,4)*2-1
+            newShips.append(deepcopy(NN))
     
 
     def draw_text( self, text ):
@@ -427,9 +465,7 @@ class PygView( object ):
         plist[:, 0] = center[0] + radius*np.cos( thetas )
         plist[:, 1] = center[1] + radius*np.sin( thetas )
 
-        if config['render']==True:
-            pygame.draw.polygon( self.screen, colors.white, plist + landform )
-
+        pygame.draw.polygon( self.screen, colors.white, plist + landform )
         return plist[ fi0:fi1, : ]
 
     def resetShipLocs(self):
@@ -452,7 +488,6 @@ class space_ship:
         self.landing_points = landing_points
         self.crashed = False
         self.fitness = 0
-        self.inputs = np.zeros(n_inputs)
 
         # find mid point of landing
         li = landing_points.shape[0]//2
@@ -465,23 +500,16 @@ class space_ship:
         self.la0 = lp0.angle_to(VEC(1, 0))
         self.laf = lpf.angle_to(VEC(1, 0))
 
-
-
-        self.mlp = MLPClassifier(hidden_layer_sizes=(n_hidden),max_iter=1, activation = "tanh")
+        self.mlp = MLPClassifier(hidden_layer_sizes=(4),max_iter=1, activation = "tanh")
         self.mlp.fit(X_train,y_train)
         #Initialize the MLP with random weights
 
-        self.mlp.intercepts_[0] = np.random.rand(n_hidden)*2-1
+        self.mlp.intercepts_[0] = np.random.rand(4)*2-1
         self.mlp.intercepts_[1] = np.random.rand(1)*2-1
-        self.mlp.coefs_[0] = np.random.rand(n_inputs,n_hidden)*2-1
-        self.mlp.coefs_[1] = np.random.rand(n_hidden,1)*2-1
+        self.mlp.coefs_[0] = np.random.rand(3,4)*2-1
+        self.mlp.coefs_[1] = np.random.rand(4,1)*2-1
         self.minDLandStrip = None
         self.debug = False
-
-    def updateFitness(self):
-        ########Update the ships fitness value###############
-        # Fitness is defined as the distance from the landing strip, dLandStrip
-        self.fitness = self.inputs[2]
 
     def predict(self):
 
@@ -508,13 +536,17 @@ class space_ship:
         #########Make prediction based on inputs##########
         string_output = "none"
         X = np.array([ship_angle,dSurface,dLandStrip])
-        self.inputs = X 
         output = self.mlp.predict(X.reshape(1,-1))[0]
 
         if(output==0):
             string_output = "left"
         elif(output==1):
             string_output = "right"
+        elif(output==2):
+            string_output = "none"
+        elif(output==3):
+            string_output = "up"
+
         return string_output
 
 
@@ -527,9 +559,9 @@ class space_ship:
         for pt in (tip, right, left):
             pt.rotate_ip( self.angle )
             pt += self.pos
-        if config['render']==True:
-            pygame.draw.polygon(self.screen, color, ( tip, left, right ) )
 
+        pygame.draw.polygon(
+            self.screen, color, ( tip, left, right ) )
         self.tip, self.left, self.right = tip, left, right
 
     def physics( self, thrust=0.0, delta_angle=0.0, stop=False ):
@@ -624,6 +656,5 @@ class space_ship:
 # End win condition methods.
 if __name__ == '__main__':
 
-    #If we want to run the game without rendering to the screen
+    # call with width of window and fps
     PygView(1000, 800).run()
-        
