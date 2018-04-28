@@ -15,9 +15,15 @@ class colors:
     white = (255,)*3
     red = (255, 0, 0)
     green = (0, 255, 0)
-    blue = (0, 255, 0)
+    blue = (0,142,204)
     black = (0, 0, 0)
 
+
+LOCS = [VEC( 800, 600 ),VEC( 350, 450 ),VEC( 300, 750 )]
+
+
+radii_red = [130,90,150,100]#[100,75,130,50]
+centers_red = [(350,250),(300,600),(650,300),(800,100)]#[(150,250),(100,300),(800,200),(350,200)]
 
 config = dict(
     planet_radius=45,
@@ -31,7 +37,7 @@ config = dict(
     num_ships = 10,
     starting_pos = (20,20),
     starting_angle = 45,
-    planet_center = VEC( 800, 600 ),
+    planet_center = VEC(900,700), #VEC( 300, 750 ),#VEC( 800, 600 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
 
@@ -40,7 +46,8 @@ config = dict(
     num_planets = 2,
     red_planet_size = 100,
     random_planets = False,
-    time_limit = 999
+    time_limit = 15,
+    load_ships = False
 
 )
 
@@ -94,7 +101,8 @@ class PygView( object ):
         self.prevFitness = []
         self.logLst = []
 
-        self.loadShips()
+        if(config['load_ships']==True):
+            self.loadShips()
 
     def loadShips(self):
         with open('goodShips.pkl', 'rb') as f:
@@ -483,8 +491,8 @@ class PygView( object ):
                 
         else:
             """Use our pre-programmed course"""
-            radii = [130,90,110]#[100,75,130,50]
-            centers = [(250,250),(300,600),(650,300)]#[(150,250),(100,300),(800,200),(350,200)]
+            radii = radii_red      #[130,90,150,100]#[100,75,130,50]
+            centers = centers_red  #[(350,250),(300,600),(650,300),(800,100)]#[(150,250),(100,300),(800,200),(350,200)]
             for i in range(len(centers)): 
                 np_center = VEC(centers[i]) 
                 if self.planetFinished == False:
@@ -846,7 +854,7 @@ class space_ship:
         if thrust == 0:
             color = colors.green
         else:
-            color = colors.red
+            color = colors.blue
 
         if self.minDLandStrip is None:
             self.minDLandStrip = (self.pos - self.mid_landing_point).length()
