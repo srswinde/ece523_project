@@ -24,12 +24,14 @@ config = dict(
     gravity= 0,  #-0.002,
     land_angle=10,
     land_speed=0.25,
-    delta_angle=1,
+    delta_angle=3,
     thrust=0.01,
     dt=5, #0.05
     flat_index = 0,
     num_ships = 10,
-    planet_center = VEC( 700, 500 ),
+    starting_pos = (20,20),
+    starting_angle = 45,
+    planet_center = VEC( 800, 600 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
 
@@ -37,9 +39,11 @@ config = dict(
     # extra planet will be a "bad" planet
     num_planets = 2,
     red_planet_size = 100,
+    random_planets = False,
     time_limit = 10
 
 )
+
 
 #Neural Network Structure
 n_inputs = 10
@@ -70,7 +74,7 @@ class PygView( object ):
         self.clock = pygame.time.Clock()
         self.fps = fps
         self.font = pygame.font.SysFont('mono', 20, bold=True)
-
+        self.planetFinished = False
         #config["planet_center"] = VEC( self.width//2, self.height//2 )
         self.planets = []
         self.landing_points = self.do_planet(
@@ -89,6 +93,7 @@ class PygView( object ):
         self.prevShips = []
         self.prevFitness = []
         self.logLst = []
+        
 
     def reset(self):
         self.ship = space_ship( self.screen, self.landing_points )
@@ -200,7 +205,7 @@ class PygView( object ):
         allWeights = np.concatenate((weights1,weights2))
 
         #Mutate anywhere from 5% to %20
-        num_m_weights = 1;#int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_weights = 3;#int((np.random.rand()*0.10+0.05)*len(allWeights))
         num_m_intercepts = int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
 
         #Array of indices to mutate
@@ -269,7 +274,7 @@ class PygView( object ):
 
         #Crossover anywhere from 20% to %60
         #Number of weights and intercepts to crossover
-        num_m_weights = 1 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
+        num_m_weights = 3 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
         num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
 
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
@@ -446,20 +451,33 @@ class PygView( object ):
 
         pygame.draw.polygon( self.screen, colors.white, plist + landform )
 
+        
+        if config['random_planets'] == True:
+            new_planet_angle = 180
+            if config['num_planets'] > 1:
+                for pl in range( config['num_planets']+1 ):
+                    if len( self.planets ) != config['num_planets']+1:
+                        npx0 = np.random.randint(250, 600)
 
-        new_planet_angle = 180
-        if config['num_planets'] > 1:
-            for pl in range( config['num_planets']+1 ):
-                if len( self.planets ) != config['num_planets']+1:
-                    npx0 = np.random.randint(250, 600)
+                        np_center = VEC(center) + VEC(npx0, 0).rotate(new_planet_angle)
 
-                    np_center = VEC(center) + VEC(npx0, 0).rotate(new_planet_angle)
-
-                    self.planets.append((np_center, config['red_planet_size']))
-                    new_planet_angle+=30
-                plcenter, plradius = self.planets[pl]
-                pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
-
+                        self.planets.append((np_center, config['red_planet_size']))
+                        new_planet_angle+=30
+                    plcenter, plradius = self.planets[pl]
+                    pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
+                
+        else:
+            """Use our pre-programmed course"""
+            radii = [130,90,110]#[100,75,130,50]
+            centers = [(250,250),(300,600),(650,300)]#[(150,250),(100,300),(800,200),(350,200)]
+            for i in range(len(centers)): 
+                np_center = VEC(centers[i]) 
+                if self.planetFinished == False:
+                    self.planets.append((np_center, radii[i]))
+                plcenter, plradius = self.planets[i]
+                pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )   
+            self.planetFinished = True
+                       
 
 
         return plist[ fi0:fi1, : ]
@@ -468,17 +486,17 @@ class PygView( object ):
         """Reset the ship locations, but not their neural net weights"""
 
         for i in range(config['num_ships']):
-            self.ships[i].pos = VEC((150, 150))
-            self.ships[i].angle = 90
+            self.ships[i].pos = config['starting_pos']
+            self.ships[i].angle = config['starting_angle']
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
             #self.ship.fitness = 0
 
 class space_ship:
     """The space shipe class"""
-    def __init__(self, screen, landing_points, pos=(150, 150), angle=90 ):
-        self.pos = VEC( pos )
-        self.angle = angle
+    def __init__(self, screen, landing_points, pos=(50, 30), angle=90 ):
+        self.pos = config['starting_pos']
+        self.angle = config['starting_angle']
         self.screen = screen
         self.velocity = VEC(0, 0)
         self.landing_points = landing_points
@@ -650,7 +668,11 @@ class space_ship:
                             dist = -1                   
                 if(dist != -1):
                     lDistances.append(dist)
-                
+            
+            #For some reason, it didn't get any distances once. This will prevent the game from crashing if that happens
+            if len(lDistances) == 0:
+                lDistances.append(1000)
+                print("Bug!")
             return np.min(lDistances)
 
     def circleIntercept(self,direction,planetCenter,planetRadius):
