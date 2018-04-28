@@ -544,8 +544,8 @@ class space_ship:
     def render(self, color ):
 
         tip = VEC( 10, 0)
-        left = VEC(-5, 5)
-        right = VEC(-5, -5)
+        left = VEC(-5, -5)
+        right = VEC(-5, 5)
 
         for pt in (tip, right, left):
             pt.rotate_ip( self.angle )

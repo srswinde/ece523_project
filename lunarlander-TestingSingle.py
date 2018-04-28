@@ -139,6 +139,8 @@ class PygView( object ):
                 self.ship.crashed = True
 
             dist = self.circleIntercept()
+            if(dist == -1):
+                dist =self.wallIntercept()
 
             self.draw_text("Tip:{} Back:{} dist{}".format(self.ship.tip,self.ship.back,dist))
 
@@ -153,34 +155,125 @@ class PygView( object ):
             #self.resetShipLocs()
         pygame.quit()
 
+    def wallIntercept(self):
+        #m is the slope of the line. Used to describe line in direction of ship
+        direction = 4
+        
+        if(direction ==0):
+            #straight
+            m = self.ship.tip - self.ship.back  
+            x, y = self.ship.tip[0],self.ship.tip[1]          
+        if(direction == 1):
+            #left
+            m = self.ship.left - self.ship.right
+            x, y = self.ship.left[0],self.ship.left[1]        
+        if(direction == 2):
+            #right
+            m = self.ship.right - self.ship.left
+            x, y = self.ship.right[0],self.ship.right[1]       
+        if(direction == 3):
+            #left-staight
+            m = (self.ship.left + self.ship.tip)/2 - self.ship.right 
+            x, y = ((self.ship.left + self.ship.tip)/2)[0],((self.ship.left + self.ship.tip)/2)[1]
+        if(direction == 4):
+            #right-straight
+            m = (self.ship.right + self.ship.tip)/2 - self.ship.left 
+            x, y = ((self.ship.right + self.ship.tip)/2)[0],((self.ship.right + self.ship.tip)/2)[1]
+        #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
+        if(m[0]==0):
+            m=999999
+        else:
+            m = m[1]/m[0]   
+
+        """ m_lw = the slope of the line that describes the left wall of the game world  """
+        m_lw = 999999
+        m_rw = 999999
+        m_bw = 0
+        m_tw = 0
+
+        """rw = rightWall, lw = leftWall, bw = bottomWall, tw = topWall"""
+        x_lw, y_lw = 0,0
+        x_rw, y_rw = 1000,0
+        x_bw, y_bw = 1000,800
+        x_tw, y_tw = 1000,0
+
+        m_walls = [m_lw,m_rw,m_bw,m_tw]
+        x_w = [x_lw,x_rw,x_bw,x_tw]
+        y_w = [y_lw,y_rw,y_bw,y_tw]
+
+        lDistances = []
+        for ii in range(4):
+            if(m - m_walls[ii] == 0):
+                x_i = 999999
+            else:
+                x_i = (m*x - y - m_walls[ii]*x_w[ii] + y_w[ii])/(m - m_walls[ii])
+
+            y_i = m*(x_i - x) + y
+
+            dist = (VEC(x_i,y_i) - VEC(x, y)).length()
+
+            if(dist != -1):
+                if(direction == 0):
+                    #straight
+                    if (self.ship.back - VEC(x_i,y_i)).length() < (self.ship.tip - VEC(x_i,y_i)).length():
+                        dist = -1   
+                if(direction == 1):
+                    #left
+                    if (self.ship.right - VEC(x_i,y_i)).length() < (self.ship.left - VEC(x_i,y_i)).length():
+                        dist = -1    
+                if(direction == 2):
+                    #right
+                    if (self.ship.left - VEC(x_i,y_i)).length() < (self.ship.right - VEC(x_i,y_i)).length():
+                        dist = -1      
+                if(direction == 3):
+                    #left-staight
+                    if (self.ship.right - VEC(x_i,y_i)).length() < ((self.ship.left + self.ship.tip)/2 - VEC(x_i,y_i)).length():
+                        dist = -1  
+                if(direction == 4):
+                    #right-straight
+                    if (self.ship.left - VEC(x_i,y_i)).length() < ((self.ship.right + self.ship.tip)/2 - VEC(x_i,y_i)).length():
+                        dist = -1                   
+            if(dist != -1):
+                lDistances.append(dist)
+            
+        return np.min(lDistances)
+
     def circleIntercept(self):
         """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
         
         #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
-        direction = 3
+        direction = 4
         
         if(direction ==0):
             #straight
-            m = self.ship.tip - self.ship.back            
+            m = self.ship.tip - self.ship.back  
+            lineStart = self.ship.tip          
         if(direction == 1):
             #left
-            m = self.ship.left - self.ship.right      
+            m = self.ship.left - self.ship.right
+            lineStart = self.ship.left       
         if(direction == 2):
             #right
             m = self.ship.right - self.ship.left     
+            lineStart = self.ship.right 
         if(direction == 3):
             #left-staight
             m = (self.ship.left + self.ship.tip)/2 - self.ship.right 
+            lineStart = (self.ship.left + self.ship.tip)/2
         if(direction == 4):
             #right-straight
             m = (self.ship.right + self.ship.tip)/2 - self.ship.left 
+            lineStart = (self.ship.right + self.ship.tip)/2
         #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
         if(m[0]==0):
             m=999999
         else:
             m = m[1]/m[0]     
 
-        c = self.ship.tip[1] - m * self.ship.tip[0]
+        #We want left and right 'seeing directions' to be at the back of the ship
+        c = lineStart[1] - m * lineStart[0]
+
+
         p = config['planet_center'][0]
         q = config['planet_center'][1]
         r = config['planet_radius']
@@ -199,15 +292,15 @@ class PygView( object ):
         elif(B**2 - 4*A*C == 0 ):
             x = -B/(2*A)
             y = m*x + c
-            dist = (VEC(x,y) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
+            dist = (VEC(x,y) - VEC(lineStart[0],lineStart[1])).length()
         else:
             x1 = (-B + np.sqrt(B**2 - 4*A*C))/(2*A)
             x2 = (-B - np.sqrt(B**2 - 4*A*C))/(2*A)
             y1 = m*x1 + c
             y2 = m*x2 + c
 
-            l1 = (VEC(x1,y1) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
-            l2 = (VEC(x2,y2) - VEC(self.ship.tip[0],self.ship.tip[1])).length()
+            l1 = (VEC(x1,y1) - VEC(lineStart[0],lineStart[1])).length()
+            l2 = (VEC(x2,y2) - VEC(lineStart[0],lineStart[1])).length()
 
             #Pick the point on the circle that is closest to the ship
             if(l1 < l2): 
