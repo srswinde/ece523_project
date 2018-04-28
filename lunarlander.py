@@ -40,7 +40,7 @@ config = dict(
 )
 
 #Neural Network Structure
-n_inputs = 3
+n_inputs = 10
 n_hidden = 4
 n_output = 1
 
@@ -139,7 +139,7 @@ class PygView( object ):
 
                     da = 0
                     thrust = 0.0
-                    ai_key = self.ships[j].predict()
+                    ai_key = self.ships[j].predict(self.planets)
                     if ai_key == "left":
                         da = -config["delta_angle"]
                     if ai_key == "right":
@@ -511,28 +511,26 @@ class space_ship:
     def updateFitness(self):
         ########Update the ships fitness value###############
         # Fitness is defined as the distance from the landing strip, dLandStrip
-        self.fitness = self.inputs[2]
-
-    def predict(self):
-
-        #########Calculate Inputs for neural network##########
+        
+        #########Calculate Inputs for fitness##########
         ship_coors = self.pos
-        land_coors = self.landing_points[0]
-        ship_angle = self.angle%360
-        dSurface = (ship_coors - config["planet_center"]).length() - config["planet_radius"]
         dLandStrip = (ship_coors - self.mid_landing_point).length()
 
         #########Normalize inputs, want 0 to 1 range########
-
-        ship_angle = ship_angle/360
         maxD = VEC(1000,800).length()
-        dSurface = dSurface/maxD
         dLandStrip = dLandStrip/maxD
-        minDLandStrip = self.minDLandStrip/maxD
+
+        self.fitness = dLandStrip
+
+    def predict(self,red_planets):
+        #########Normalize inputs, want 0 to 1 range########
+        maxD = VEC(1000,800).length()
 
         #########Make prediction based on inputs##########
         string_output = "none"
-        X = np.array([ship_angle,dSurface,dLandStrip])
+
+        X = self.calcInputs(red_planets)
+        X = X/maxD
         self.inputs = X
         output = self.mlp.predict(X.reshape(1,-1))[0]
 
@@ -541,7 +539,216 @@ class space_ship:
         elif(output==1):
             string_output = "right"
         return string_output
+    
+    def calcInputs(self,red_planets):
+        avoidObject = np.zeros(5)
+        objectDistances = np.zeros(5)
+        #For each direction
+        for i in range(5):
+            #For each planet (+1 is for the good planet)
+            allObjDistances = []
+            for j in range(len(red_planets)+1):
+                distFromEdge = self.wallIntercept(i)
+                avoidObject[i] = 1
+                if(j!=len(red_planets)):#If we're not equal to the last planet (that's the good one)
+                    #red_planets[j][0] is the planet center
+                    dist = self.circleIntercept(i,red_planets[j][0],red_planets[j][1])
+                    if(dist == -1):
+                        dist = distFromEdge
+                    allObjDistances.append(dist)
+                else:
+                    #Make the last planet the good one
+                    center = np.array([config['planet_center'][0],config['planet_center'][1]])
+                    dist = self.circleIntercept(i,center,config['planet_radius'])
+                    allObjDistances.append(dist)
+            objectDistances[i] = min(allObjDistances)
+            ind = allObjDistances.index(objectDistances[i])
+            if(ind != len(red_planets)):
+                avoidObject[i] = 1
 
+        return np.concatenate((objectDistances,avoidObject))
+
+
+    def wallIntercept(self,direction):
+            #m is the slope of the line. Used to describe line in direction of ship
+            #direction = 4
+            
+            if(direction ==0):
+                #straight
+                m = self.tip - self.back  
+                x, y = self.tip[0],self.tip[1]          
+            if(direction == 1):
+                #left
+                m = self.left - self.right
+                x, y = self.left[0],self.left[1]        
+            if(direction == 2):
+                #right
+                m = self.right - self.left
+                x, y = self.right[0],self.right[1]       
+            if(direction == 3):
+                #left-staight
+                m = (self.left + self.tip)/2 - self.right 
+                x, y = ((self.left + self.tip)/2)[0],((self.left + self.tip)/2)[1]
+            if(direction == 4):
+                #right-straight
+                m = (self.right + self.tip)/2 - self.left 
+                x, y = ((self.right + self.tip)/2)[0],((self.right + self.tip)/2)[1]
+            #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
+            if(m[0]==0):
+                m=999999
+            else:
+                m = m[1]/m[0]   
+
+            """ m_lw = the slope of the line that describes the left wall of the game world  """
+            m_lw = 999999
+            m_rw = 999999
+            m_bw = 0
+            m_tw = 0
+
+            """rw = rightWall, lw = leftWall, bw = bottomWall, tw = topWall"""
+            x_lw, y_lw = 0,0
+            x_rw, y_rw = 1000,0
+            x_bw, y_bw = 1000,800
+            x_tw, y_tw = 1000,0
+
+            m_walls = [m_lw,m_rw,m_bw,m_tw]
+            x_w = [x_lw,x_rw,x_bw,x_tw]
+            y_w = [y_lw,y_rw,y_bw,y_tw]
+
+            lDistances = []
+            for ii in range(4):
+                if(m - m_walls[ii] == 0):
+                    x_i = 999999
+                else:
+                    x_i = (m*x - y - m_walls[ii]*x_w[ii] + y_w[ii])/(m - m_walls[ii])
+
+                y_i = m*(x_i - x) + y
+
+                dist = (VEC(x_i,y_i) - VEC(x, y)).length()
+
+                if(dist != -1):
+                    if(direction == 0):
+                        #straight
+                        if (self.back - VEC(x_i,y_i)).length() < (self.tip - VEC(x_i,y_i)).length():
+                            dist = -1   
+                    if(direction == 1):
+                        #left
+                        if (self.right - VEC(x_i,y_i)).length() < (self.left - VEC(x_i,y_i)).length():
+                            dist = -1    
+                    if(direction == 2):
+                        #right
+                        if (self.left - VEC(x_i,y_i)).length() < (self.right - VEC(x_i,y_i)).length():
+                            dist = -1      
+                    if(direction == 3):
+                        #left-staight
+                        if (self.right - VEC(x_i,y_i)).length() < ((self.left + self.tip)/2 - VEC(x_i,y_i)).length():
+                            dist = -1  
+                    if(direction == 4):
+                        #right-straight
+                        if (self.left - VEC(x_i,y_i)).length() < ((self.right + self.tip)/2 - VEC(x_i,y_i)).length():
+                            dist = -1                   
+                if(dist != -1):
+                    lDistances.append(dist)
+                
+            return np.min(lDistances)
+
+    def circleIntercept(self,direction,planetCenter,planetRadius):
+        """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
+        
+        #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
+        #direction = 4
+        
+        if(direction == 0):
+            #straight
+            m = self.tip - self.back  
+            lineStart = self.tip          
+        if(direction == 1):
+            #left
+            m = self.left - self.right
+            lineStart = self.left       
+        if(direction == 2):
+            #right
+            m = self.right - self.left     
+            lineStart = self.right 
+        if(direction == 3):
+            #left-staight
+            m = (self.left + self.tip)/2 - self.right 
+            lineStart = (self.left + self.tip)/2
+        if(direction == 4):
+            #right-straight
+            m = (self.right + self.tip)/2 - self.left 
+            lineStart = (self.right + self.tip)/2
+        #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
+        if(m[0]==0):
+            m=999999
+        else:
+            m = m[1]/m[0]     
+
+        #We want left and right 'seeing directions' to be at the back of the ship
+        c = lineStart[1] - m * lineStart[0]
+
+
+        p = planetCenter[0]  #config['planet_center'][0]
+        q = planetCenter[1]  #config['planet_center'][1]
+        r = planetRadius #config['planet_radius']
+
+        A = m**2 + 1
+        B = 2*(m*c - m*q - p)
+        C = q**2-r**2+p**2-2*c*q+c**2
+        
+        #If B^2−4AC<0 then the line misses the circle
+        #If B^2−4AC=0 then the line is tangent to the circle.
+        #If B^2−4AC>0 then the line meets the circle in two distinct points.
+        if(B**2 - 4*A*C < 0):
+            x = -1
+            y = -1
+            dist = -1
+        elif(B**2 - 4*A*C == 0 ):
+            x = -B/(2*A)
+            y = m*x + c
+            dist = (VEC(x,y) - VEC(lineStart[0],lineStart[1])).length()
+        else:
+            x1 = (-B + np.sqrt(B**2 - 4*A*C))/(2*A)
+            x2 = (-B - np.sqrt(B**2 - 4*A*C))/(2*A)
+            y1 = m*x1 + c
+            y2 = m*x2 + c
+
+            l1 = (VEC(x1,y1) - VEC(lineStart[0],lineStart[1])).length()
+            l2 = (VEC(x2,y2) - VEC(lineStart[0],lineStart[1])).length()
+
+            #Pick the point on the circle that is closest to the ship
+            if(l1 < l2): 
+                x = x1
+                y = y1
+                dist = l1
+            else:
+                x = x2
+                y = y2
+                dist = l2
+        
+        #Check to make sure the line intercepts the circle on the front side of the ship
+        if(dist != -1):
+            if(direction ==0):
+                #straight
+                if (self.back - VEC(x,y)).length() < (self.tip - VEC(x,y)).length():
+                    dist = -1          
+            if(direction == 1):
+                #left
+                if (self.right - VEC(x,y)).length() < (self.left - VEC(x,y)).length():
+                    dist = -1      
+            if(direction == 2):
+                #right
+                if (self.left - VEC(x,y)).length() < (self.right - VEC(x,y)).length():
+                    dist = -1      
+            if(direction == 3):
+                #left-staight
+                if (self.right - VEC(x,y)).length() < ((self.left + self.tip)/2 - VEC(x,y)).length():
+                    dist = -1  
+            if(direction == 4):
+                #right-straight
+                if (self.left - VEC(x,y)).length() < ((self.right + self.tip)/2 - VEC(x,y)).length():
+                    dist = -1             
+        return dist
 
     def render(self, color ):
 
@@ -553,7 +760,8 @@ class space_ship:
             pt.rotate_ip( self.angle )
             pt += self.pos
         pygame.draw.polygon(self.screen, color, ( tip, left, right ) )
-
+        
+        self.back = (left + right)/2
         self.tip, self.left, self.right = tip, left, right
 
     def physics( self, thrust=0.0, delta_angle=0.0, stop=False ):
