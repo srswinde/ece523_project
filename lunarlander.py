@@ -309,15 +309,15 @@ class PygView( object ):
 
         scores = np.zeros(config['num_ships'])
         for i in range(config['num_ships']):
-            scores[i] = deepcopy(self.ships[i].fitness)
+            scores[i] = deepcopy(self.ships[i].fitness2)
 
-        scores_sort = np.sort(scores)
+        scores_sort = np.sort(scores)[::-1]
         #Invert. Make highest scores to Lowest
-        scores_sort = 1/scores_sort
+        #scores_sort = 1/scores_sort
 
         if(scores_sort[0]> self.bestScore):
             self.bestScore = scores_sort[0]
-        scores_sort_ind = scores.argsort()
+        scores_sort_ind = scores.argsort()[::-1] #Descending order (highest to lowest)
 
         ##### PRINT STUFF #####
         print("")
@@ -331,11 +331,11 @@ class PygView( object ):
             for i in range(config['num_ships']):
                 scores[i] = deepcopy(self.prevFitness[i])
                 self.ships[i].mlp = deepcopy(self.prevShips[i])
-                self.ships[i].fitness = deepcopy(self.prevFitness[i])
+                self.ships[i].fitness2 = deepcopy(self.prevFitness[i])
 
-            scores_sort = np.sort(scores)
+            scores_sort = np.sort(scores)[::-1]
             #Invert. Make highest scores to Lowest
-            scores_sort = 1/scores_sort
+            #scores_sort = 1/scores_sort
             print("Generation Rejected")
             reject = True
 
@@ -360,7 +360,7 @@ class PygView( object ):
                     'intercepts2': NN1.intercepts_[1],
                     'Generation': self.generation,
                     'timestamp': datetime.datetime.now(),
-                    'score':self.ships[scores_sort_ind[i]].fitness
+                    'score':self.ships[scores_sort_ind[i]].fitness2
                 }
                 self.logLst.append(logdict)
                 fname = "best.pkl"
@@ -369,14 +369,14 @@ class PygView( object ):
                 with open(fname, 'wb') as pfd:
                     pickle.dump(  self.logLst, pfd )
 
-            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness,"Weight:" , weightSum)
+            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness2,"Weight:" , weightSum)
         #print(self.bestScore)
         #########################
 
 
         # Sort the scores from low value to high values
         # Low values indicate a better score (Closer to landing zone)
-        scores_sort_ind = scores.argsort()
+        scores_sort_ind = scores.argsort()[::-1]
         sortedShips = []
         for i in range(config['num_ships']):
             sortedShips.append( deepcopy(self.ships[scores_sort_ind[i]].mlp))
@@ -415,7 +415,7 @@ class PygView( object ):
         self.prevFitness = []
         for i in range(len(self.ships)):
             self.prevShips.append( deepcopy(self.ships[i].mlp))
-            self.prevFitness.append( deepcopy(self.ships[i].fitness))
+            self.prevFitness.append( deepcopy(self.ships[i].fitness2))
             self.ships[i].mlp = deepcopy(newShips[i])
 
 
@@ -492,7 +492,7 @@ class PygView( object ):
             self.ships[i].angle = config['starting_angle']
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
-            self.ship.fitness2 = 0
+            self.ships[i].fitness2 = 0
 
 class space_ship:
     """The space shipe class"""
@@ -537,6 +537,16 @@ class space_ship:
         good_distances = 0
         badCount = 0 
         goodCount = 0
+
+        distances = self.inputs[range(5)]
+        bad = self.inputs[range(5,10)]
+
+        bad_inds = np.where(bad == 1)
+        bad_distances = distances[bad_inds]
+        
+        bad_distances = np.min(bad_distances)
+
+        '''
         for i in range(5):
             dist = self.inputs[i]
             bad = self.inputs[i+5]
@@ -550,6 +560,7 @@ class space_ship:
             good_distances = good_distances/goodCount    
         if(badCount!=0):          
             bad_distances = bad_distances/badCount
+        '''
 
         self.fitness2 = self.fitness2 + bad_distances
 
@@ -568,7 +579,7 @@ class space_ship:
         X = self.calcInputs(red_planets)
         
         #########Normalize inputs, want 0 to 1 range########
-        self.inputs = X
+        self.inputs = deepcopy(X)
         maxD = VEC(1000,800).length()
         X[range(5)] = X[range(5)]/maxD
 
