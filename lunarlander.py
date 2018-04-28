@@ -20,13 +20,13 @@ class colors:
 
 
 config = dict(
-    planet_radius=75,
+    planet_radius=45,
     gravity= 0,  #-0.002,
     land_angle=10,
     land_speed=0.25,
     delta_angle=1,
     thrust=0.01,
-    dt=2, #0.05
+    dt=5, #0.05
     flat_index = 0,
     num_ships = 10,
     planet_center = VEC( 700, 500 ),
@@ -35,8 +35,10 @@ config = dict(
 
     # If num_planets > 1 each
     # extra planet will be a "bad" planet
-    num_planets = 6,
-    time_limit = 6,
+    num_planets = 2,
+    red_planet_size = 100,
+    time_limit = 10
+
 )
 
 #Neural Network Structure
@@ -154,12 +156,12 @@ class PygView( object ):
                     if(self.ships[j].check_on_planet() or self.ships[j].check_pos_screen()==False):
                         self.ships[j].crashed = True
 
-                    self.ships[j].updateFitness()
+                    self.ships[j].updateFitness(config['planet_center'])
 
                     if ( self.ships[j].check_red_planets(self.planets) == False ):
                         self.ships[j].crashed = True
                         # Give it a mean Penalty.
-                        #self.ships[j].fitness = 100
+                        self.ships[j].fitness = self.ships[j].fitness + 0.2
 
                     #Run this again to update fitness
                     #_ = self.ships[j].predict()
@@ -453,7 +455,7 @@ class PygView( object ):
 
                     np_center = VEC(center) + VEC(npx0, 0).rotate(new_planet_angle)
 
-                    self.planets.append((np_center, 20))
+                    self.planets.append((np_center, config['red_planet_size']))
                     new_planet_angle+=30
                 plcenter, plradius = self.planets[pl]
                 pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
@@ -508,32 +510,31 @@ class space_ship:
         self.minDLandStrip = None
         self.debug = False
 
-    def updateFitness(self):
+    def updateFitness(self,planetCenter):
         ########Update the ships fitness value###############
         # Fitness is defined as the distance from the landing strip, dLandStrip
         
         #########Calculate Inputs for fitness##########
         ship_coors = self.pos
-        dLandStrip = (ship_coors - self.mid_landing_point).length()
+        dPlanet = (ship_coors - planetCenter).length()
 
         #########Normalize inputs, want 0 to 1 range########
         maxD = VEC(1000,800).length()
-        dLandStrip = dLandStrip/maxD
+        dPlanet = dPlanet/maxD
 
-        self.fitness = dLandStrip
+        self.fitness = dPlanet
 
     def predict(self,red_planets):
+        string_output = "none"
+        X = self.calcInputs(red_planets)
+        
         #########Normalize inputs, want 0 to 1 range########
         maxD = VEC(1000,800).length()
-
-        #########Make prediction based on inputs##########
-        string_output = "none"
-
-        X = self.calcInputs(red_planets)
         X = X/maxD
         self.inputs = X
-        output = self.mlp.predict(X.reshape(1,-1))[0]
 
+        #########Make prediction based on inputs##########
+        output = self.mlp.predict(X.reshape(1,-1))[0]
         if(output==0):
             string_output = "left"
         elif(output==1):
