@@ -40,7 +40,7 @@ config = dict(
     num_planets = 2,
     red_planet_size = 100,
     random_planets = False,
-    time_limit = 10
+    time_limit = 999
 
 )
 
@@ -93,7 +93,18 @@ class PygView( object ):
         self.prevShips = []
         self.prevFitness = []
         self.logLst = []
+
+        self.loadShips()
+
+    def loadShips(self):
+        with open('goodShips.pkl', 'rb') as f:
+            lShipData = pickle.load(f)
         
+        for i in range(config['num_ships']):
+            self.ships[i].mlp.intercepts_[0] = lShipData[-1]['intercepts1']
+            self.ships[i].mlp.intercepts_[1] = lShipData[-1]['intercepts2']
+            self.ships[i].mlp.coefs_[0] = lShipData[-1]['weights1']
+            self.ships[i].mlp.coefs_[1] = lShipData[-1]['weights2']   
 
     def reset(self):
         self.ship = space_ship( self.screen, self.landing_points )
@@ -325,7 +336,9 @@ class PygView( object ):
 
 
         #If we did worse than before, reject this generation
+        
         reject = False
+        '''
         if(scores_sort[0]<self.bestScore):
             scores = np.zeros(config['num_ships'])
             for i in range(config['num_ships']):
@@ -338,7 +351,7 @@ class PygView( object ):
             #scores_sort = 1/scores_sort
             print("Generation Rejected")
             reject = True
-
+        '''
         self.generation = self.generation + 1
         for i in range(config['num_ships']):
             #Get Weight value of best ship
@@ -369,7 +382,7 @@ class PygView( object ):
                 with open(fname, 'wb') as pfd:
                     pickle.dump(  self.logLst, pfd )
 
-            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness2,"Weight:" , weightSum)
+            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness2,self.ships[scores_sort_ind[i]].fitnessDebug, "Weight:" , weightSum)
         #print(self.bestScore)
         #########################
 
@@ -493,6 +506,7 @@ class PygView( object ):
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
             self.ships[i].fitness2 = 0
+            self.ships[i].fitnessDebug = 0
 
 class space_ship:
     """The space shipe class"""
@@ -506,6 +520,7 @@ class space_ship:
         self.fitness = 0
         self.inputs = np.zeros(n_inputs)
         self.fitness2 = 0 
+        self.fitnessDebug = 0
         # find mid point of landing
         li = landing_points.shape[0]//2
         self.mid_landing_point = VEC(list(self.landing_points[li]))
@@ -533,6 +548,7 @@ class space_ship:
     def updateFitness(self,planetCenter):
         ########Update the ships fitness value###############
         # Fitness is defined as the distance from the landing strip, dLandStrip
+        maxD = VEC(1000,800).length()
         bad_distances = 0
         good_distances = 0
         badCount = 0 
@@ -541,28 +557,21 @@ class space_ship:
         distances = self.inputs[range(5)]
         bad = self.inputs[range(5,10)]
 
-        bad_inds = np.where(bad == 1)
+        bad_inds = np.where(bad == 1)[0]
         bad_distances = distances[bad_inds]
-        
         bad_distances = np.min(bad_distances)
 
-        '''
-        for i in range(5):
-            dist = self.inputs[i]
-            bad = self.inputs[i+5]
-            if(bad==1):
-                bad_distances = bad_distances + dist
-                badCount = badCount + 1 
-            else:
-                good_distances = good_distances + dist
-                goodCount = goodCount + 1 
-        if(goodCount!=0):
-            good_distances = good_distances/goodCount    
-        if(badCount!=0):          
-            bad_distances = bad_distances/badCount
-        '''
+        
+        good_inds = np.where(bad == 0)[0]
+        if(len(good_inds) !=0):
+            good_distances = distances[good_inds]
+            good_distances = np.min(good_distances)
+            good_distances = 1/good_distances
 
-        self.fitness2 = self.fitness2 + bad_distances
+            self.fitnessDebug = self.fitnessDebug + good_distances * maxD*10
+            self.fitness2 = self.fitness2 + bad_distances + good_distances * maxD*10
+        else:
+            self.fitness2 = self.fitness2 + bad_distances
 
         #########Calculate Inputs for fitness##########
         ship_coors = self.pos
@@ -600,7 +609,7 @@ class space_ship:
             allObjDistances = []
             for j in range(len(red_planets)+1):
                 distFromEdge = self.wallIntercept(i)
-                avoidObject[i] = 1
+                #avoidObject[i] = 1
                 if(j!=len(red_planets)):#If we're not equal to the last planet (that's the good one)
                     #red_planets[j][0] is the planet center
                     dist = self.circleIntercept(i,red_planets[j][0],red_planets[j][1])
