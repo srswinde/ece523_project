@@ -21,9 +21,22 @@ class colors:
 
 LOCS = [VEC( 800, 600 ),VEC( 350, 450 ),VEC( 300, 750 )]
 
+mode = "easy"
 
-radii_red = [130,90,150,100]#[100,75,130,50]
-centers_red = [(350,250),(300,600),(650,300),(800,100)]#[(150,250),(100,300),(800,200),(350,200)]
+if(mode == 'easy'):
+    radii_red = [130,130,130]#[100,75,130,50]
+    centers_red = [(250,250),(250,600),(600,250)]#[(150,250),(100,300),(800,200),(350,200)]
+    center_white = VEC(800,600)
+elif(mode == 'medium'):
+    radii_red = [130,130,150]#[100,75,130,50]
+    centers_red = [(350,250),(300,700),(650,300)]#[(150,250),(100,300),(800,200),(350,200)]
+    center_white = VEC(800,600)
+elif(mode == 'hard'):
+    radii_red = [130,130,150,100,100,100]#[100,75,130,50]
+    centers_red = [(350,250),(300,700),(650,300),(800,100),(520,560),(800,560)]#[(150,250),(100,300),(800,200),(350,200)]
+    center_white = VEC(1000,130)
+
+
 
 config = dict(
     planet_radius=45,
@@ -37,7 +50,7 @@ config = dict(
     num_ships = 10,
     starting_pos = (20,20),
     starting_angle = 45,
-    planet_center = VEC(900,700), #VEC( 300, 750 ),#VEC( 800, 600 ),
+    planet_center = center_white, #VEC( 300, 750 ),#VEC( 800, 600 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
 
