@@ -24,7 +24,7 @@ config = dict(
     gravity= 0,  #-0.002,
     land_angle=10,
     land_speed=0.25,
-    delta_angle=3,
+    delta_angle=2,
     thrust=0.01,
     dt=5, #0.05
     flat_index = 0,
@@ -47,7 +47,7 @@ config = dict(
 
 #Neural Network Structure
 n_inputs = 10
-n_hidden = 4
+n_hidden = 7
 n_output = 1
 
 #These are used for initializing the scikitlearn Neural Networks
@@ -205,8 +205,8 @@ class PygView( object ):
         allWeights = np.concatenate((weights1,weights2))
 
         #Mutate anywhere from 5% to %20
-        num_m_weights = 3;#int((np.random.rand()*0.10+0.05)*len(allWeights))
-        num_m_intercepts = int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
+        num_m_weights = int(np.round(1/16 * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_intercepts = int(np.round(1/16 * len(intercepts))) * int(np.round(np.random.rand()))#int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
 
         #Array of indices to mutate
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
@@ -274,8 +274,10 @@ class PygView( object ):
 
         #Crossover anywhere from 20% to %60
         #Number of weights and intercepts to crossover
-        num_m_weights = 3 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
-        num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
+        #num_m_weights = 3 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
+        #num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
+        num_m_weights = int(np.round(1/16 * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_intercepts = int(np.round(1/16 * len(intercepts))) * int(np.round(np.random.rand()+0.3))
 
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
         m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
@@ -490,7 +492,7 @@ class PygView( object ):
             self.ships[i].angle = config['starting_angle']
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
-            #self.ship.fitness = 0
+            self.ship.fitness2 = 0
 
 class space_ship:
     """The space shipe class"""
@@ -503,7 +505,7 @@ class space_ship:
         self.crashed = False
         self.fitness = 0
         self.inputs = np.zeros(n_inputs)
-
+        self.fitness2 = 0 
         # find mid point of landing
         li = landing_points.shape[0]//2
         self.mid_landing_point = VEC(list(self.landing_points[li]))
@@ -531,7 +533,26 @@ class space_ship:
     def updateFitness(self,planetCenter):
         ########Update the ships fitness value###############
         # Fitness is defined as the distance from the landing strip, dLandStrip
-        
+        bad_distances = 0
+        good_distances = 0
+        badCount = 0 
+        goodCount = 0
+        for i in range(5):
+            dist = self.inputs[i]
+            bad = self.inputs[i+5]
+            if(bad==1):
+                bad_distances = bad_distances + dist
+                badCount = badCount + 1 
+            else:
+                good_distances = good_distances + dist
+                goodCount = goodCount + 1 
+        if(goodCount!=0):
+            good_distances = good_distances/goodCount    
+        if(badCount!=0):          
+            bad_distances = bad_distances/badCount
+
+        self.fitness2 = self.fitness2 + bad_distances
+
         #########Calculate Inputs for fitness##########
         ship_coors = self.pos
         dPlanet = (ship_coors - planetCenter).length()
@@ -547,9 +568,9 @@ class space_ship:
         X = self.calcInputs(red_planets)
         
         #########Normalize inputs, want 0 to 1 range########
-        maxD = VEC(1000,800).length()
-        X = X/maxD
         self.inputs = X
+        maxD = VEC(1000,800).length()
+        X[range(5)] = X[range(5)]/maxD
 
         #########Make prediction based on inputs##########
         output = self.mlp.predict(X.reshape(1,-1))[0]
@@ -579,6 +600,8 @@ class space_ship:
                     #Make the last planet the good one
                     center = np.array([config['planet_center'][0],config['planet_center'][1]])
                     dist = self.circleIntercept(i,center,config['planet_radius'])
+                    if(dist == -1):
+                        dist = 99999
                     allObjDistances.append(dist)
             objectDistances[i] = min(allObjDistances)
             ind = allObjDistances.index(objectDistances[i])
