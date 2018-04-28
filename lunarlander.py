@@ -595,14 +595,14 @@ class space_ship:
             self.fitness2 = self.fitness2 + bad_distances
 
         #########Calculate Inputs for fitness##########
-        ship_coors = self.pos
-        dPlanet = (ship_coors - planetCenter).length()
+        #ship_coors = self.pos
+        #dPlanet = (ship_coors - planetCenter).length()
 
         #########Normalize inputs, want 0 to 1 range########
-        maxD = VEC(1000,800).length()
-        dPlanet = dPlanet/maxD
+        #maxD = VEC(1000,800).length()
+        #dPlanet = dPlanet/maxD
 
-        self.fitness = dPlanet
+        #self.fitness = dPlanet
 
     def predict(self,red_planets):
         string_output = "none"
