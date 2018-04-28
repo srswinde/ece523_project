@@ -28,14 +28,14 @@ config = dict(
     thrust=0.01,
     dt=2, #0.05
     flat_index = 0,
-    num_ships = 30,
+    num_ships = 10,
     planet_center = VEC( 700, 500 ),
     planet_center2 = VEC( 100, 100 ),
     speed_multiplier = 1.35,
 
     # If num_planets > 1 each
     # extra planet will be a "bad" planet
-    num_planets = 4,
+    num_planets = 6,
     time_limit = 6,
 )
 
@@ -154,15 +154,17 @@ class PygView( object ):
                     if(self.ships[j].check_on_planet() or self.ships[j].check_pos_screen()==False):
                         self.ships[j].crashed = True
 
+                    self.ships[j].updateFitness()
+
                     if ( self.ships[j].check_red_planets(self.planets) == False ):
                         self.ships[j].crashed = True
                         # Give it a mean Penalty.
-                        self.ships[j].fitness = 100
+                        #self.ships[j].fitness = 100
 
                     #Run this again to update fitness
-                    _ = self.ships[j].predict()
+                    #_ = self.ships[j].predict()
                     #Run this to update fitness
-                    self.ships[j].updateFitness()
+                    
 
                 pygame.display.flip()
                 self.screen.blit( self.background, (0, 0) )
