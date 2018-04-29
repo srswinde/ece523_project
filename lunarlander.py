@@ -21,14 +21,12 @@ class colors:
 
 
 config = dict(
-    planet_radius=45,
     gravity= 0,  #-0.002,
     land_angle=10,
     land_speed=0.25,
     delta_angle=2,
     thrust=0.01,
     dt=5, #0.05
-    flat_index = 0,
     num_ships = 10,
     starting_pos = (20,20),
     starting_angle = 45,
@@ -74,10 +72,7 @@ class PygView( object ):
         self.planetFinished = False
         #config["planet_center"] = VEC( self.width//2, self.height//2 )
         self.planets = []
-        self.landing_points = self.do_planet(
-            radius=45,
-            center=self.level["center_white"],
-            flat_index = config['flat_index'])
+        self.landing_points = self.do_planet()
         self.ship = space_ship( self.screen, self.landing_points, self.level )
         self.ships = []
         for i in range(config['num_ships']):
@@ -132,10 +127,7 @@ class PygView( object ):
             while all_crashed == False:
                 self.draw_text("Generation:{}".format(self.generation))
                 # Render the planet
-                self.do_planet(
-                    radius=self.level["radius_white"],
-                    center=self.level['center_white'],
-                    flat_index = config['flat_index'])
+                self.do_planet()
 
                 for j in range(config['num_ships']):
                     if(time.time()-start_time > config['time_limit']):
@@ -440,27 +432,28 @@ class PygView( object ):
         self.screen.blit(
             surface, ( ( self.width - fw ), ( self.height - fh )) )
 
-    def do_planet(self, radius, center=(200, 200), flat_index=0):
+    def do_planet( self ):
         """Draw the planet including the gaussian noise
         to simulate erruptions"""
 
-        # angle in radians between points defining the planet
-        res = 0.01
+        if self.level["radius_white"] != 0:
+            # angle in radians between points defining the planet
+            res = 0.01
 
 
-        # numer of points defining the planet
-        npoints = int( 2*math.pi//res + 1)
-        thetas = np.arange(0, 2*math.pi, res)
-        plist = np.zeros((npoints, 2))
+            # numer of points defining the planet
+            npoints = int( 2*math.pi//res + 1)
+            thetas = np.arange(0, 2*math.pi, res)
+            plist = np.zeros((npoints, 2))
 
-        landform = np.random.normal( scale=2, size=( npoints, 2) )
+            landform = np.random.normal( scale=2, size=( npoints, 2) )
 
-        plist[:, 0] = self.level["center_white"][0] + self.level["radius_white"]*np.cos(thetas)
-        plist[:, 1] = self.level["center_white"][1] + self.level["radius_white"]*np.sin(thetas)
+            plist[:, 0] = self.level["center_white"][0] + self.level["radius_white"]*np.cos(thetas)
+            plist[:, 1] = self.level["center_white"][1] + self.level["radius_white"]*np.sin(thetas)
 
 
 
-        pygame.draw.circle( self.screen,  colors.white, self.level["center_white"], self.level["radius_white"] )
+            pygame.draw.circle( self.screen,  colors.white, self.level["center_white"], self.level["radius_white"] )
 
 
         radii = self.level['radii_red']
@@ -593,7 +586,13 @@ class space_ship:
                     dist = self.circleIntercept(i,center, self.level['radius_white'])
                     if(dist == -1):
                         dist = 99999
-                    allObjDistances.append(dist)
+                    # if we set the white planet radius
+                    # to 0 we ignore the white planet
+                    # in the fitness function.
+                    if self.level['center_white'] != 0:
+                        allObjDistances.append(dist)
+                    else:
+                        allObjDistances.append(1)
             objectDistances[i] = min(allObjDistances)
             ind = allObjDistances.index(objectDistances[i])
             if(ind != len(red_planets)):
@@ -877,12 +876,13 @@ class red_planet:
         self.idx = 0
 
     def render( self ):
-
+        """
         # angle in radians between points defining the planet
         res = 0.01
 
 
         # numer of points defining the planet
+
         npoints = int( 2*math.pi//res + 1)
         thetas = np.arange(0, 2*math.pi, res)
         plist = np.zeros((npoints, 2))
@@ -892,8 +892,8 @@ class red_planet:
         plist[:, 0] = self.center[0] + self.radius*np.cos(thetas)
         plist[:, 1] = self.center[1] + self.radius*np.sin(thetas)
 
-        pygame.draw.polygon (self.screen, colors.red, plist+landform  )
-
+        pygame.draw.polygon (self.screen, colors.red, plist+landform  )"""
+        pygame.draw.circle( self.screen, colors.red, np.int64(self.center), self.radius)
 
     def __getitem__( self, key ):
         if key == 0:
