@@ -5,9 +5,10 @@ from sklearn.neural_network import MLPClassifier
 import pygame
 import numpy as np
 import math
-#import pickle
 import time
 import pickle, datetime
+import json
+import sys
 VEC = pygame.math.Vector2
 
 
@@ -21,7 +22,7 @@ class colors:
 
 LOCS = [VEC( 800, 600 ),VEC( 350, 450 ),VEC( 300, 750 )]
 
-mode = "easy"
+mode = "hard"
 
 if(mode == 'easy'):
     radii_red = [130,130,130]#[100,75,130,50]
@@ -32,9 +33,11 @@ elif(mode == 'medium'):
     centers_red = [(350,250),(300,700),(650,300)]#[(150,250),(100,300),(800,200),(350,200)]
     center_white = VEC(800,600)
 elif(mode == 'hard'):
-    radii_red = [130,130,150,100,100,100]#[100,75,130,50]
-    centers_red = [(350,250),(300,700),(650,300),(800,100),(520,560),(800,560)]#[(150,250),(100,300),(800,200),(350,200)]
+    radii_red = [130,130,150,100,100]#[100,75,130,50]
+    centers_red = [(350,250),(300,700),(650,300),(800,100),(800,560)]#[(150,250),(100,300),(800,200),(350,200)]
     center_white = VEC(1000,130)
+
+
 
 
 
@@ -60,7 +63,7 @@ config = dict(
     red_planet_size = 100,
     random_planets = False,
     time_limit = 15,
-    load_ships = False
+    load_ships = True
 
 )
 
@@ -78,12 +81,14 @@ y_train = np.array(range(n_output+1))  #np.array([0,1])
 
 
 class PygView( object ):
-    def __init__(self, width=1000, height=1000, fps=60):
+    def __init__(self, level, width=1000, height=1000, fps=60 ):
         """Initialize pygame, window, background, font,...
         """
 
         pygame.init()
         pygame.display.set_caption("Press ESC to quit")
+
+        self.level = level
         self.width = width
         self.height = height
         # self.height = width // 4
@@ -101,10 +106,10 @@ class PygView( object ):
             radius=config["planet_radius"],
             center=config['planet_center'],
             flat_index = config['flat_index'])
-        self.ship = space_ship( self.screen, self.landing_points )
+        self.ship = space_ship( self.screen, self.landing_points, self.level )
         self.ships = []
         for i in range(config['num_ships']):
-            self.ships.append(space_ship( self.screen, self.landing_points ))
+            self.ships.append(space_ship( self.screen, self.landing_points, self.level ))
         self.Newships = []
         self.game_over = False
         self.stop_printing = False
@@ -117,15 +122,16 @@ class PygView( object ):
         if(config['load_ships']==True):
             self.loadShips()
 
+
     def loadShips(self):
         with open('goodShips.pkl', 'rb') as f:
             lShipData = pickle.load(f)
-        
+
         for i in range(config['num_ships']):
             self.ships[i].mlp.intercepts_[0] = lShipData[-1]['intercepts1']
             self.ships[i].mlp.intercepts_[1] = lShipData[-1]['intercepts2']
             self.ships[i].mlp.coefs_[0] = lShipData[-1]['weights1']
-            self.ships[i].mlp.coefs_[1] = lShipData[-1]['weights2']   
+            self.ships[i].mlp.coefs_[1] = lShipData[-1]['weights2']
 
     def reset(self):
         self.ship = space_ship( self.screen, self.landing_points )
@@ -203,7 +209,7 @@ class PygView( object ):
                     #Run this again to update fitness
                     #_ = self.ships[j].predict()
                     #Run this to update fitness
-                    
+
 
                 pygame.display.flip()
                 self.screen.blit( self.background, (0, 0) )
@@ -357,7 +363,7 @@ class PygView( object ):
 
 
         #If we did worse than before, reject this generation
-        
+
         reject = False
         '''
         if(scores_sort[0]<self.bestScore):
@@ -487,8 +493,8 @@ class PygView( object ):
 
         pygame.draw.polygon( self.screen, colors.white, plist + landform )
 
-        
-        if config['random_planets'] == True:
+
+        if False: #config['random_planets'] == True:
             new_planet_angle = 180
             if config['num_planets'] > 1:
                 for pl in range( config['num_planets']+1 ):
@@ -501,19 +507,31 @@ class PygView( object ):
                         new_planet_angle+=30
                     plcenter, plradius = self.planets[pl]
                     pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
-                
-        else:
+
+        elif False:
             """Use our pre-programmed course"""
             radii = radii_red      #[130,90,150,100]#[100,75,130,50]
             centers = centers_red  #[(350,250),(300,600),(650,300),(800,100)]#[(150,250),(100,300),(800,200),(350,200)]
-            for i in range(len(centers)): 
-                np_center = VEC(centers[i]) 
+            for i in range(len(centers)):
+                np_center = VEC(centers[i])
                 if self.planetFinished == False:
                     self.planets.append((np_center, radii[i]))
                 plcenter, plradius = self.planets[i]
-                pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )   
+                pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
             self.planetFinished = True
-                       
+
+        else:
+            radii = self.level['radii_red']
+            centers = self.level['centers_red']
+
+            for i in range(len(centers)):
+                np_center = VEC(centers[i])
+                if self.planetFinished == False:
+                    self.planets.append((np_center, radii[i]))
+                plcenter, plradius = self.planets[i]
+                pygame.draw.circle(self.screen, colors.red, np.int64(plcenter), plradius )
+            self.planetFinished = True
+
 
 
         return plist[ fi0:fi1, : ]
@@ -522,8 +540,8 @@ class PygView( object ):
         """Reset the ship locations, but not their neural net weights"""
 
         for i in range(config['num_ships']):
-            self.ships[i].pos = config['starting_pos']
-            self.ships[i].angle = config['starting_angle']
+            self.ships[i].pos = self.level['ship']['starting_pos']
+            self.ships[i].angle = self.level["ship"]['starting_angle']
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
             self.ships[i].fitness2 = 0
@@ -531,16 +549,17 @@ class PygView( object ):
 
 class space_ship:
     """The space shipe class"""
-    def __init__(self, screen, landing_points, pos=(50, 30), angle=90 ):
-        self.pos = config['starting_pos']
-        self.angle = config['starting_angle']
+    def __init__(self, screen, landing_points, level  ):
+        self.level = level
+        self.pos = self.level['ship']['starting_pos']
+        self.angle = self.level['ship']['starting_angle']
         self.screen = screen
         self.velocity = VEC(0, 0)
         self.landing_points = landing_points
         self.crashed = False
         self.fitness = 0
         self.inputs = np.zeros(n_inputs)
-        self.fitness2 = 0 
+        self.fitness2 = 0
         self.fitnessDebug = 0
         # find mid point of landing
         li = landing_points.shape[0]//2
@@ -572,7 +591,7 @@ class space_ship:
         maxD = VEC(1000,800).length()
         bad_distances = 0
         good_distances = 0
-        badCount = 0 
+        badCount = 0
         goodCount = 0
 
         distances = self.inputs[range(5)]
@@ -582,7 +601,7 @@ class space_ship:
         bad_distances = distances[bad_inds]
         bad_distances = np.min(bad_distances)
 
-        
+
         good_inds = np.where(bad == 0)[0]
         if(len(good_inds) !=0):
             good_distances = distances[good_inds]
@@ -607,7 +626,7 @@ class space_ship:
     def predict(self,red_planets):
         string_output = "none"
         X = self.calcInputs(red_planets)
-        
+
         #########Normalize inputs, want 0 to 1 range########
         self.inputs = deepcopy(X)
         maxD = VEC(1000,800).length()
@@ -620,7 +639,7 @@ class space_ship:
         elif(output==1):
             string_output = "right"
         return string_output
-    
+
     def calcInputs(self,red_planets):
         avoidObject = np.zeros(5)
         objectDistances = np.zeros(5)
@@ -655,32 +674,32 @@ class space_ship:
     def wallIntercept(self,direction):
             #m is the slope of the line. Used to describe line in direction of ship
             #direction = 4
-            
+
             if(direction ==0):
                 #straight
-                m = self.tip - self.back  
-                x, y = self.tip[0],self.tip[1]          
+                m = self.tip - self.back
+                x, y = self.tip[0],self.tip[1]
             if(direction == 1):
                 #left
                 m = self.left - self.right
-                x, y = self.left[0],self.left[1]        
+                x, y = self.left[0],self.left[1]
             if(direction == 2):
                 #right
                 m = self.right - self.left
-                x, y = self.right[0],self.right[1]       
+                x, y = self.right[0],self.right[1]
             if(direction == 3):
                 #left-staight
-                m = (self.left + self.tip)/2 - self.right 
+                m = (self.left + self.tip)/2 - self.right
                 x, y = ((self.left + self.tip)/2)[0],((self.left + self.tip)/2)[1]
             if(direction == 4):
                 #right-straight
-                m = (self.right + self.tip)/2 - self.left 
+                m = (self.right + self.tip)/2 - self.left
                 x, y = ((self.right + self.tip)/2)[0],((self.right + self.tip)/2)[1]
             #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
             if(m[0]==0):
                 m=999999
             else:
-                m = m[1]/m[0]   
+                m = m[1]/m[0]
 
             """ m_lw = the slope of the line that describes the left wall of the game world  """
             m_lw = 999999
@@ -713,26 +732,26 @@ class space_ship:
                     if(direction == 0):
                         #straight
                         if (self.back - VEC(x_i,y_i)).length() < (self.tip - VEC(x_i,y_i)).length():
-                            dist = -1   
+                            dist = -1
                     if(direction == 1):
                         #left
                         if (self.right - VEC(x_i,y_i)).length() < (self.left - VEC(x_i,y_i)).length():
-                            dist = -1    
+                            dist = -1
                     if(direction == 2):
                         #right
                         if (self.left - VEC(x_i,y_i)).length() < (self.right - VEC(x_i,y_i)).length():
-                            dist = -1      
+                            dist = -1
                     if(direction == 3):
                         #left-staight
                         if (self.right - VEC(x_i,y_i)).length() < ((self.left + self.tip)/2 - VEC(x_i,y_i)).length():
-                            dist = -1  
+                            dist = -1
                     if(direction == 4):
                         #right-straight
                         if (self.left - VEC(x_i,y_i)).length() < ((self.right + self.tip)/2 - VEC(x_i,y_i)).length():
-                            dist = -1                   
+                            dist = -1
                 if(dist != -1):
                     lDistances.append(dist)
-            
+
             #For some reason, it didn't get any distances once. This will prevent the game from crashing if that happens
             if len(lDistances) == 0:
                 lDistances.append(1000)
@@ -741,35 +760,35 @@ class space_ship:
 
     def circleIntercept(self,direction,planetCenter,planetRadius):
         """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
-        
+
         #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
         #direction = 4
-        
+
         if(direction == 0):
             #straight
-            m = self.tip - self.back  
-            lineStart = self.tip          
+            m = self.tip - self.back
+            lineStart = self.tip
         if(direction == 1):
             #left
             m = self.left - self.right
-            lineStart = self.left       
+            lineStart = self.left
         if(direction == 2):
             #right
-            m = self.right - self.left     
-            lineStart = self.right 
+            m = self.right - self.left
+            lineStart = self.right
         if(direction == 3):
             #left-staight
-            m = (self.left + self.tip)/2 - self.right 
+            m = (self.left + self.tip)/2 - self.right
             lineStart = (self.left + self.tip)/2
         if(direction == 4):
             #right-straight
-            m = (self.right + self.tip)/2 - self.left 
+            m = (self.right + self.tip)/2 - self.left
             lineStart = (self.right + self.tip)/2
         #Don't want to divide by zero, so just give m a really high value if x in y/x is 0
         if(m[0]==0):
             m=999999
         else:
-            m = m[1]/m[0]     
+            m = m[1]/m[0]
 
         #We want left and right 'seeing directions' to be at the back of the ship
         c = lineStart[1] - m * lineStart[0]
@@ -782,7 +801,7 @@ class space_ship:
         A = m**2 + 1
         B = 2*(m*c - m*q - p)
         C = q**2-r**2+p**2-2*c*q+c**2
-        
+
         #If B^2−4AC<0 then the line misses the circle
         #If B^2−4AC=0 then the line is tangent to the circle.
         #If B^2−4AC>0 then the line meets the circle in two distinct points.
@@ -804,7 +823,7 @@ class space_ship:
             l2 = (VEC(x2,y2) - VEC(lineStart[0],lineStart[1])).length()
 
             #Pick the point on the circle that is closest to the ship
-            if(l1 < l2): 
+            if(l1 < l2):
                 x = x1
                 y = y1
                 dist = l1
@@ -812,29 +831,29 @@ class space_ship:
                 x = x2
                 y = y2
                 dist = l2
-        
+
         #Check to make sure the line intercepts the circle on the front side of the ship
         if(dist != -1):
             if(direction ==0):
                 #straight
                 if (self.back - VEC(x,y)).length() < (self.tip - VEC(x,y)).length():
-                    dist = -1          
+                    dist = -1
             if(direction == 1):
                 #left
                 if (self.right - VEC(x,y)).length() < (self.left - VEC(x,y)).length():
-                    dist = -1      
+                    dist = -1
             if(direction == 2):
                 #right
                 if (self.left - VEC(x,y)).length() < (self.right - VEC(x,y)).length():
-                    dist = -1      
+                    dist = -1
             if(direction == 3):
                 #left-staight
                 if (self.right - VEC(x,y)).length() < ((self.left + self.tip)/2 - VEC(x,y)).length():
-                    dist = -1  
+                    dist = -1
             if(direction == 4):
                 #right-straight
                 if (self.left - VEC(x,y)).length() < ((self.right + self.tip)/2 - VEC(x,y)).length():
-                    dist = -1             
+                    dist = -1
         return dist
 
     def render(self, color ):
@@ -847,7 +866,7 @@ class space_ship:
             pt.rotate_ip( self.angle )
             pt += self.pos
         pygame.draw.polygon(self.screen, color, ( tip, left, right ) )
-        
+
         self.back = (left + right)/2
         self.tip, self.left, self.right = tip, left, right
 
@@ -936,9 +955,12 @@ class space_ship:
 
 # End win condition methods.
 if __name__ == '__main__':
+    if len(sys.argv) == 2:
+        levelfile = open( sys.argv[1] )
+    else:
+        levelfile = open( 'levels/easy' )
 
+    level = json.load( levelfile )
     # call with width of window and fps
-    PygView(1000, 800).run()
-    #If we want to run the game without rendering to the screen
-    PygView(1000, 800).run()
+    PygView(level, 1000, 800).run()
 
