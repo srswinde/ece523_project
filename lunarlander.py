@@ -21,7 +21,7 @@ class colors:
 
 LOCS = [VEC( 800, 600 ),VEC( 350, 450 ),VEC( 300, 750 )]
 
-mode = "easy"
+mode = "hard"
 
 if(mode == 'easy'):
     radii_red = [130,130,130]#[100,75,130,50]
@@ -59,8 +59,8 @@ config = dict(
     num_planets = 2,
     red_planet_size = 100,
     random_planets = False,
-    time_limit = 15,
-    load_ships = False
+    time_limit = 999,
+    load_ships = True
 
 )
 
@@ -237,8 +237,8 @@ class PygView( object ):
         allWeights = np.concatenate((weights1,weights2))
 
         #Mutate anywhere from 5% to %20
-        num_m_weights = int(np.round(1/16 * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
-        num_m_intercepts = int(np.round(1/16 * len(intercepts))) * int(np.round(np.random.rand()))#int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
+        num_m_weights = int(np.round((np.random.rand()*0.15+0.05) * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_intercepts = int(np.round((np.random.rand()*0.15+0.05) * len(intercepts))) * int(np.round(np.random.rand()))#int(np.round(np.random.rand()));# int((np.random.rand()*0.10+0.05)*len(intercepts))
 
         #Array of indices to mutate
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
@@ -246,7 +246,7 @@ class PygView( object ):
 
 
         selector = np.random.rand()
-        if(selector > 0.5):
+        if(selector > 0.3):
 
             mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
             for ii in range(len(m_inds_w)):
@@ -308,8 +308,8 @@ class PygView( object ):
         #Number of weights and intercepts to crossover
         #num_m_weights = 3 #int( np.ceil( (np.random.rand()*0.1)*len(allWeights)) )
         #num_m_intercepts = int(np.round(np.random.rand())); #np.round((np.random.rand()*0.1)*len(intercepts))
-        num_m_weights = int(np.round(1/16 * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
-        num_m_intercepts = int(np.round(1/16 * len(intercepts))) * int(np.round(np.random.rand()+0.3))
+        num_m_weights = int(np.round((np.random.rand()*0.15+0.05)  * len(allWeights))) #int((np.random.rand()*0.10+0.05)*len(allWeights))
+        num_m_intercepts = int(np.round((np.random.rand()*0.15+0.05)  * len(intercepts))) * int(np.round(np.random.rand()+0.3))
 
         m_inds_w = np.random.choice(range(0,len(allWeights)), size = num_m_weights, replace = False)
         m_inds_i = np.random.choice(range(0,len(intercepts)), size = num_m_intercepts, replace = False)
@@ -528,6 +528,8 @@ class PygView( object ):
             self.ships[i].crashed = False
             self.ships[i].fitness2 = 0
             self.ships[i].fitnessDebug = 0
+            self.ships[i].sawTheGoodPlanet = False
+            self.ships[i].donezo = False
 
 class space_ship:
     """The space shipe class"""
@@ -545,6 +547,8 @@ class space_ship:
         # find mid point of landing
         li = landing_points.shape[0]//2
         self.mid_landing_point = VEC(list(self.landing_points[li]))
+        self.sawTheGoodPlanet = False
+        self.donezo = False
 
         # VEC can't be instantiated with array
         # so we convert to list
@@ -588,11 +592,18 @@ class space_ship:
             good_distances = distances[good_inds]
             good_distances = np.min(good_distances)
             good_distances = 1/good_distances
-
             self.fitnessDebug = self.fitnessDebug + good_distances * maxD*10
             self.fitness2 = self.fitness2 + bad_distances + good_distances * maxD*10
+            self.sawTheGoodPlanet = True
         else:
             self.fitness2 = self.fitness2 + bad_distances
+
+
+        #If we see the planet (once) double my current fitness score. 
+        #Encourages ships to come into view of the good planet
+        if(self.sawTheGoodPlanet == True and self.donezo == False):
+            self.fitness2 = self.fitness2 * 2
+            self.donezo = True
 
         #########Calculate Inputs for fitness##########
         #ship_coors = self.pos
@@ -735,8 +746,8 @@ class space_ship:
             
             #For some reason, it didn't get any distances once. This will prevent the game from crashing if that happens
             if len(lDistances) == 0:
-                lDistances.append(1000)
-                print("Bug!")
+                lDistances.append(1)
+                #print("Bug!")
             return np.min(lDistances)
 
     def circleIntercept(self,direction,planetCenter,planetRadius):
