@@ -59,7 +59,7 @@ config = dict(
     num_planets = 2,
     red_planet_size = 100,
     random_planets = False,
-    time_limit = 999,
+    time_limit = 30,
     load_ships = True
 
 )
