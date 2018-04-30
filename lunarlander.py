@@ -246,7 +246,7 @@ class PygView( object ):
 
 
         selector = np.random.rand()
-        if(selector > 0.3):
+        if(selector > 0.5):
 
             mutateFactor = 1 + ((np.random.rand() - 0.5) * 3 + (np.random.rand() - 0.5))
             for ii in range(len(m_inds_w)):
