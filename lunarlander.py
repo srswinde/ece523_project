@@ -498,8 +498,8 @@ class space_ship:
         self.fitness2 = 0
         self.fitnessDebug = 0
         # find mid point of landing
-        li = landing_points.shape[0]//2
-        self.mid_landing_point = VEC(list(self.landing_points[li]))
+        #li = landing_points.shape[0]//2
+        #self.mid_landing_point = VEC(list(self.landing_points[li]))
         self.sawTheGoodPlanet = False
         self.donezo = False
 
