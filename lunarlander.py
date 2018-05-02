@@ -710,7 +710,7 @@ class space_ship:
                 #print("Bug!")
             return np.min(lDistances)
 
-    def (self,direction,planetCenter,planetRadius):
+    def circleIntercept(self,direction,planetCenter,planetRadius):
         """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
 
         #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
@@ -944,7 +944,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         levelfile = open( sys.argv[1] )
     else:
-        levelfile = open( 'levels/circle' )
+        levelfile = open( 'levels/nowhite' )
 
     level = json.load( levelfile )
     # call with width of window and fps
