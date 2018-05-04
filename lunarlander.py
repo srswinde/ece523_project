@@ -94,7 +94,7 @@ class PygView( object ):
 
 
     def loadShips(self):
-        with open('GreatShipNoWhite.pkl', 'rb') as f:
+        with open('Ships\goodShips1.pkl', 'rb') as f:
             lShipData = pickle.load(f)
 
         for i in range(config['num_ships']):
@@ -561,9 +561,9 @@ class space_ship:
 
         #If we see the planet (once) double my current fitness score. 
         #Encourages ships to come into view of the good planet
-        if(self.sawTheGoodPlanet == True and self.donezo == False):
-            self.fitness2 = self.fitness2 * 2
-            self.donezo = True
+        #if(self.sawTheGoodPlanet == True and self.donezo == False):
+            #self.fitness2 = self.fitness2 * 2
+            #self.donezo = True
 
         #########Calculate Inputs for fitness##########
         #ship_coors = self.pos
@@ -968,7 +968,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         levelfile = open( sys.argv[1] )
     else:
-        levelfile = open( 'levels/medium' )
+        levelfile = open( 'levels/Train/Train2.txt' )
 
     level = json.load( levelfile )
     # call with width of window and fps
