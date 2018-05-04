@@ -38,7 +38,7 @@ config = dict(
 
 )
 
-TrainingLevels = ['levels\Train\Train1.txt', 'levels\Train\Train2.txt','levels\Train\Train2.txt']
+TrainingLevels = ['levels\Train\Train1.txt', 'levels\Train\Train2.txt','levels\Train\Train3.txt']
 
 
 #These are just used for initializing the scikitlearn Neural Networks
@@ -93,6 +93,8 @@ class PygView( object ):
         self.prevShips = []
         self.prevFitness = []
         self.logLst = []
+        self.nfitnesses = np.zeros(config['num_ships'])
+
 
         if(config['load_ships']==True):
             self.loadShips()
@@ -195,7 +197,7 @@ class PygView( object ):
                         if ( self.ships[j].check_red_planets(self.planets) == False ):
                             self.ships[j].crashed = True
                             # Give it a mean Penalty.
-                            self.ships[j].fitness = self.ships[j].fitness + 0.2
+                            #self.ships[j].fitness = self.ships[j].fitness + 0.2
 
                         #Run this again to update fitness
                         #_ = self.ships[j].predict()
@@ -210,8 +212,17 @@ class PygView( object ):
                         if(self.ships[j].crashed == False):
                             all_crashed = False
 
+                #Normalize fitness here 
+                fitnesses = []
+                for p in range(config['num_ships']):
+                    fitnesses.append(deepcopy(self.ships[p].fitness2))
+                theMax = max(fitnesses)
+                fitnesses = np.array(fitnesses) / theMax 
+                
+                self.nfitnesses = self.nfitnesses + fitnesses
 
-                self.updateWeights()
+
+            self.updateWeights()
                 #for mm in range(config['num_ships']):
                 #    self.ships[mm].level = deepcopy(self.level)
                 #self.resetShipLocs()
@@ -340,7 +351,7 @@ class PygView( object ):
 
         scores = np.zeros(config['num_ships'])
         for i in range(config['num_ships']):
-            scores[i] = deepcopy(self.ships[i].fitness2)
+            scores[i] = deepcopy(self.nfitnesses[i]) #deepcopy(self.ships[i].fitness2)
 
         scores_sort = np.sort(scores)[::-1]
         #Invert. Make highest scores to Lowest
@@ -393,7 +404,7 @@ class PygView( object ):
                     'intercepts2': NN1.intercepts_[1],
                     'Generation': self.generation,
                     'timestamp': datetime.datetime.now(),
-                    'score':self.ships[scores_sort_ind[i]].fitness2
+                    'score':scores[scores_sort_ind[i]]
                 }
                 self.logLst.append(logdict)
                 fname = "best.pkl"
@@ -402,7 +413,7 @@ class PygView( object ):
                 with open(fname, 'wb') as pfd:
                     pickle.dump(  self.logLst, pfd )
 
-            print("Ship Score:",self.ships[scores_sort_ind[i]].fitness2,self.ships[scores_sort_ind[i]].fitnessDebug, "Weight:" , weightSum)
+            print("Ship Score:",scores[scores_sort_ind[i]],self.ships[scores_sort_ind[i]].fitnessDebug, "Weight:" , weightSum)
         #print(self.bestScore)
         #########################
 
@@ -452,6 +463,8 @@ class PygView( object ):
             self.prevShips.append( deepcopy(self.ships[i].mlp))
             self.prevFitness.append( deepcopy(self.ships[i].fitness2))
             self.ships[i].mlp = deepcopy(newShips[i])
+
+        self.nfitnesses = np.zeros(config['num_ships'])
 
     def draw_text( self, text ):
         """
