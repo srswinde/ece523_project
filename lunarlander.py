@@ -34,7 +34,7 @@ config = dict(
     time_limit = 20,
     load_ships = True,
     ship_file = 'Ships\Train4.pkl',
-    default_level = 'levels\Train\Train3.txt'
+    default_level = 'levels\Test\Test1.txt'
 
 )
 
