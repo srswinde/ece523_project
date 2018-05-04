@@ -59,5 +59,5 @@ def circlelevel( cradius, pradius, nplanets ):
     return level
 
 
-gridlevel(7,5, 40, 100, 40, "grid2" )
+gridlevel(2,2, 50, 0, 50, "grid3.txt" )
 #circlelevel(300, 20, 40 )
