@@ -31,10 +31,10 @@ config = dict(
     starting_pos = (20,20),
     starting_angle = 45,
     speed_multiplier = 1.35,
-    time_limit = 20,
+    time_limit = 10,
     load_ships = True,
-    ship_file = 'Ships\Train4.pkl',
-    default_level = 'levels\Test\Test4.txt'
+    ship_file = 'Ships\Best.pkl',
+    default_level = 'levels\Train\Train0.txt'
 
 )
 
@@ -159,11 +159,19 @@ class PygView( object ):
                     if ai_key == "right":
                         da = config["delta_angle"]
                     thrust = config["thrust"]
+                    
+                    
+                    if(j==0):
+                        theColor = colors.red
+                    else:
+                        theColor = colors.blue
+
                     # Do the physics on the spaceship
                     self.ships[j].physics(
                         delta_angle=da,
                         thrust=thrust,
-                        stop=self.ships[j].crashed )
+                        stop=self.ships[j].crashed,
+                        color = theColor )
                     # Did we land?
                     if(self.ships[j].check_on_planet() or self.ships[j].check_pos_screen()==False):
                         self.ships[j].crashed = True
@@ -532,6 +540,16 @@ class space_ship:
 
         self.debug = False
 
+    def validShipPos(self):
+        if(self.tip[0] > 0 and self.tip[0] < 1000 and self.tip[1] > 0 and self.tip[1] < 800 and
+           self.left[0] > 0 and self.left[0] < 1000 and self.left[1] > 0 and self.left[1] < 800 and
+           self.right[0] > 0 and self.right[0] < 1000 and self.right[1] > 0 and self.right[1] < 800
+            ):
+            return True
+        else:
+            return False
+        
+
     def updateFitness(self,planetCenter):
         ########Update the ships fitness value###############
         # Fitness is defined as the distance from the landing strip, dLandStrip
@@ -548,17 +566,19 @@ class space_ship:
         bad_distances = distances[bad_inds]
         bad_distances = np.min(bad_distances)
 
-
-        good_inds = np.where(bad == 0)[0]
-        if(len(good_inds) !=0):
-            good_distances = distances[good_inds]
-            good_distances = np.min(good_distances)
-            good_distances = 1/good_distances
-            self.fitnessDebug = self.fitnessDebug + good_distances * maxD*10
-            self.fitness2 = self.fitness2 + bad_distances + good_distances * maxD*10
-            self.sawTheGoodPlanet = True
+        if self.validShipPos() == True:
+            good_inds = np.where(bad == 0)[0]
+            if(len(good_inds) !=0):
+                good_distances = distances[good_inds]
+                good_distances = np.min(good_distances)
+                good_distances = 1/good_distances
+                self.fitnessDebug = self.fitnessDebug + good_distances * maxD*10
+                self.fitness2 = self.fitness2 + bad_distances + good_distances * maxD*10
+                self.sawTheGoodPlanet = True
+            else:
+                self.fitness2 = self.fitness2 + bad_distances
         else:
-            self.fitness2 = self.fitness2 + bad_distances
+            self.fitness2 = self.fitness2 + 1
 
 
         #If we see the planet (once) double my current fitness score. 
@@ -619,7 +639,7 @@ class space_ship:
                     # if we set the white planet radius
                     # to 0 we ignore the white planet
                     # in the fitness function.
-                    if self.level['center_white'] != 0:
+                    if self.level['radius_white'] != 0:
                         allObjDistances.append(dist)
                     else:
                         allObjDistances.append(99999)
@@ -715,7 +735,7 @@ class space_ship:
             #For some reason, it didn't get any distances once. This will prevent the game from crashing if that happens
             if len(lDistances) == 0:
                 lDistances.append(1)
-                #print("Bug!")
+                print("Bug!")
             return np.min(lDistances)
 
     def circleIntercept(self,direction,planetCenter,planetRadius):
@@ -830,7 +850,7 @@ class space_ship:
         self.back = (left + right)/2
         self.tip, self.left, self.right = tip, left, right
 
-    def physics( self, thrust=0.0, delta_angle=0.0, stop=False ):
+    def physics( self, thrust=0.0, delta_angle=0.0, stop=False, color = colors.blue ):
         ppos =  self.level['center_white']
 
         # gravity = config["gravity"]*(self.pos-ppos).normalize()
@@ -843,10 +863,12 @@ class space_ship:
             self.pos = self.pos + self.velocity*dt
             self.angle += delta_angle
 
+        '''
         if thrust == 0:
             color = colors.green
         else:
             color = colors.blue
+        '''
 
         self.render( color )
 
