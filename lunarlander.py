@@ -32,7 +32,9 @@ config = dict(
     starting_angle = 45,
     speed_multiplier = 1.35,
     time_limit = 20,
-    load_ships = True
+    load_ships = True,
+    ship_file = 'Ships\Train4.pkl',
+    default_level = 'levels\Train\Train3.txt'
 
 )
 
@@ -94,7 +96,7 @@ class PygView( object ):
 
 
     def loadShips(self):
-        with open('Ships\goodShips1.pkl', 'rb') as f:
+        with open(config['ship_file'], 'rb') as f:
             lShipData = pickle.load(f)
 
         for i in range(config['num_ships']):
@@ -968,7 +970,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         levelfile = open( sys.argv[1] )
     else:
-        levelfile = open( 'levels/Train/Train2.txt' )
+        levelfile = open( config['default_level'] )
 
     level = json.load( levelfile )
     # call with width of window and fps
