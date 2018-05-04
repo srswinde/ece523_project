@@ -94,7 +94,7 @@ class PygView( object ):
 
 
     def loadShips(self):
-        with open('goodShips.pkl', 'rb') as f:
+        with open('GreatShipNoWhite.pkl', 'rb') as f:
             lShipData = pickle.load(f)
 
         for i in range(config['num_ships']):
@@ -418,6 +418,8 @@ class PygView( object ):
 
 
         #Save the previous ships incase all the new ships are worse
+        #We don't currently need this because we're always carrying the
+        #best ships to the next round
         self.prevShips = []
         self.prevFitness = []
         for i in range(len(self.ships)):
@@ -714,7 +716,7 @@ class space_ship:
                 #print("Bug!")
             return np.min(lDistances)
 
-    def (self,direction,planetCenter,planetRadius):
+    def circleIntercept(self,direction,planetCenter,planetRadius):
         """https://math.stackexchange.com/questions/228841/how-do-i-calculate-the-intersections-of-a-straight-line-and-a-circle"""
 
         #m is the slope of the line. c is the y intercept. used to describe line in direction of ship
@@ -966,7 +968,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         levelfile = open( sys.argv[1] )
     else:
-        levelfile = open( 'levels/circle' )
+        levelfile = open( 'levels/medium' )
 
     level = json.load( levelfile )
     # call with width of window and fps
