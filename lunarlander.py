@@ -33,12 +33,12 @@ config = dict(
     speed_multiplier = 1.35,
     time_limit = 10,
     load_ships = True,
-    ship_file = 'Ships\Train4.pkl',
+    ship_file = 'theShips\Train4.pkl',
     default_level = 'levels\Train\Train2.txt'
 
 )
 
-TrainingLevels = ['levels\Train\Train1.txt', 'levels\Train\Train5.txt', 'levels\Train\Train3.txt']
+TrainingLevels = ['levels\Train\Train6.txt','levels\Train\Train1.txt','levels\Train\Train2.txt']
 
 
 #These are just used for initializing the scikitlearn Neural Networks
