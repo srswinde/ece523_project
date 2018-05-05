@@ -31,16 +31,16 @@ config = dict(
     starting_pos = (20,20),
     starting_angle = 45,
     speed_multiplier = 1.35,
-    time_limit = 10,
-    load_ships = True,
-    ship_file = 'theShips\Train1_2_4_5_6.pkl',
+    time_limit = 5,
+    load_ships = False,
+    ship_file = 'theShips\Train1_3_3.pkl',
     default_level = 'levels\Train\Train2.txt'
 
 )
 
 TrainingLevels = ['levels\Train\Train1.txt','levels\Train\Train2.txt','levels\Train\Train6.txt','levels\Train\Train4.txt','levels\Train\Train5.txt']
 
-TestingLevels = ['levels\Test\Test1.txt','levels\Test\Test2.txt','levels\Test\Test3.txt']
+TestingLevels = ['levels\Train\Train3.txt','levels\Train\Train3.txt','levels\Train\Train1.txt','levels\Train\Train2.txt','levels\Train\Train4.txt']
 
 theLevels = TestingLevels
 
@@ -470,7 +470,7 @@ class PygView( object ):
         probabilities = scores_sort
 
         #Take best performing ships(Top 20%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.2))
+        num_bestShips = int(np.floor(config['num_ships']*0.5))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
