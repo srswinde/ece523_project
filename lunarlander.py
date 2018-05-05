@@ -15,7 +15,7 @@ VEC = pygame.math.Vector2
 class colors:
     white = (255,)*3
     red = (255, 0, 0)
-    green = (0, 255, 0)
+    green = (0,128,0)
     blue = (0,142,204)
     black = (0, 0, 0)
 
@@ -38,7 +38,7 @@ config = dict(
 
 )
 
-TrainingLevels = ['levels\Train\Train1.txt', 'levels\Train\Train2.txt','levels\Train\Train3.txt']
+TrainingLevels = ['levels\Train\Train1.txt', 'levels\Train\Train5.txt', 'levels\Train\Train3.txt']
 
 
 #These are just used for initializing the scikitlearn Neural Networks
@@ -95,6 +95,7 @@ class PygView( object ):
         self.logLst = []
         self.nfitnesses = np.zeros(config['num_ships'])
 
+        self.maxes = np.zeros(len(TrainingLevels))
 
         if(config['load_ships']==True):
             self.loadShips()
@@ -178,9 +179,25 @@ class PygView( object ):
                         
                         
                         if(j==0):
-                            theColor = colors.red
+                            theColor = (255, 0, 0)
+                        elif(j==1):
+                             theColor = (255, 114, 0)
+                        elif(j==2):
+                            theColor = (0, 76, 255)
+                        elif(j==3):
+                            theColor = (0, 114, 255)
+                        elif(j==4):
+                            theColor = (0, 144, 255)
+                        elif(j==5):
+                            theColor = (0, 174, 255)
+                        elif(j==6):
+                            theColor = (0, 200, 255)
+                        elif(j==7):
+                            theColor = (0, 230, 255)
+                        elif(j==8):
+                            theColor = (0, 255, 255)                                
                         else:
-                            theColor = colors.blue
+                            theColor = (0, 255, 255)
 
                         # Do the physics on the spaceship
                         self.ships[j].physics(
@@ -217,6 +234,12 @@ class PygView( object ):
                 for p in range(config['num_ships']):
                     fitnesses.append(deepcopy(self.ships[p].fitness2))
                 theMax = max(fitnesses)
+
+                if(theMax > self.maxes[qqq]):
+                    self.maxes[qqq] = theMax
+                else:
+                    theMax = self.maxes[qqq] 
+
                 fitnesses = np.array(fitnesses) / theMax 
                 
                 self.nfitnesses = self.nfitnesses + fitnesses
@@ -763,7 +786,7 @@ class space_ship:
             #For some reason, it didn't get any distances once. This will prevent the game from crashing if that happens
             if len(lDistances) == 0:
                 lDistances.append(1)
-                print("Bug!")
+                #print("Bug!")
             return np.min(lDistances)
 
     def circleIntercept(self,direction,planetCenter,planetRadius):
