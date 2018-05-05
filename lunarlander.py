@@ -33,13 +33,16 @@ config = dict(
     speed_multiplier = 1.35,
     time_limit = 10,
     load_ships = True,
-    ship_file = 'theShips\Train4.pkl',
+    ship_file = 'theShips\Train1_2_4_5_6.pkl',
     default_level = 'levels\Train\Train2.txt'
 
 )
 
-TrainingLevels = ['levels\Train\Train6.txt','levels\Train\Train1.txt','levels\Train\Train2.txt']
+TrainingLevels = ['levels\Train\Train1.txt','levels\Train\Train2.txt','levels\Train\Train6.txt','levels\Train\Train4.txt','levels\Train\Train5.txt']
 
+TestingLevels = ['levels\Test\Test1.txt','levels\Test\Test2.txt','levels\Test\Test3.txt']
+
+theLevels = TestingLevels
 
 #These are just used for initializing the scikitlearn Neural Networks
 X_train = np.array([[0,0,0],[0,0,0],[0,0,0],[0,0,0]])
@@ -95,7 +98,7 @@ class PygView( object ):
         self.logLst = []
         self.nfitnesses = np.zeros(config['num_ships'])
 
-        self.maxes = np.zeros(len(TrainingLevels))
+        self.maxes = np.zeros(len(theLevels))
 
         if(config['load_ships']==True):
             self.loadShips()
@@ -130,8 +133,8 @@ class PygView( object ):
 
 
             
-            for qqq in range(len(TrainingLevels)):
-                levelfile1 = open( TrainingLevels[qqq] )
+            for qqq in range(len(theLevels)):
+                levelfile1 = open( theLevels[qqq] )
                 level1 = json.load( levelfile1 )
                 self.level = deepcopy(level1)
                 
@@ -145,9 +148,13 @@ class PygView( object ):
                 self.resetShipLocs()        
                 start_time = time.time()
                 all_crashed = False
-
+                shipsAlive = 10
+                loopCount = 0
                 while all_crashed == False:
                     self.draw_text("Generation:{}".format(self.generation))
+                    self.draw_text_top(("Level: {} of {} Ships Alive: {}".format(qqq,len(theLevels),shipsAlive)))
+                    
+
                     # Render the planet
                     self.do_planet()
 
@@ -224,12 +231,16 @@ class PygView( object ):
                     pygame.display.flip()
                     self.screen.blit( self.background, (0, 0) )
 
+                    shipsAlive = 0
                     all_crashed = True
                     for j in range(config['num_ships']):
                         if(self.ships[j].crashed == False):
                             all_crashed = False
+                            shipsAlive = shipsAlive + 1 
 
-                #Normalize fitness here 
+                    loopCount = loopCount + 1
+
+                #Normalize fitness by the number of loops 
                 fitnesses = []
                 for p in range(config['num_ships']):
                     fitnesses.append(deepcopy(self.ships[p].fitness2))
@@ -240,9 +251,9 @@ class PygView( object ):
                 else:
                     theMax = self.maxes[qqq] 
 
-                #fitnesses = np.array(fitnesses) / theMax 
+                fitnesses = np.array(fitnesses) / loopCount
                 
-                self.nfitnesses = self.nfitnesses + np.array(fitnesses)
+                self.nfitnesses = self.nfitnesses + fitnesses
 
 
             self.updateWeights()
@@ -491,9 +502,14 @@ class PygView( object ):
             for i in range(len(self.ships)):
                 self.prevShips.append( deepcopy(self.ships[i].mlp))
                 self.prevFitness = deepcopy(self.nfitnesses)
-                self.ships[i].mlp = deepcopy(newShips[i])
+
+
+        for i in range(len(self.ships)):
+            self.ships[i].mlp = deepcopy(newShips[i])
+            self.ships[i].fitnessDebug = 0
 
         self.nfitnesses = np.zeros(config['num_ships'])
+
 
     def draw_text( self, text ):
         """
@@ -503,6 +519,15 @@ class PygView( object ):
         # // makes integer division in python3
         self.screen.blit(
             surface, ( ( self.width - fw ), ( self.height - fh )) )
+
+    def draw_text_top( self, text ):
+        """
+        """
+        fw, fh = self.font.size(text)  # fw: font width,  fh: font height
+        surface = self.font.render( text, True, (0, 255, 0) )
+        # // makes integer division in python3
+        self.screen.blit(
+            surface, ( ( self.width - fw ), ( 20 - fh )) )
 
     def do_planet( self ):
         """Draw the planet including the gaussian noise
@@ -552,7 +577,6 @@ class PygView( object ):
             self.ships[i].velocity = VEC(0, 0)
             self.ships[i].crashed = False
             self.ships[i].fitness2 = 0
-            self.ships[i].fitnessDebug = 0
             self.ships[i].sawTheGoodPlanet = False
             self.ships[i].donezo = False
 
