@@ -471,8 +471,8 @@ class PygView( object ):
         scores_sort = scores_sort/scores_sum
         probabilities = scores_sort
 
-        #Take best performing ships(Top 20%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.5))
+        #Take best performing ships(Top 30%) and introduce directly to next round
+        num_bestShips = int(np.floor(config['num_ships']*0.3))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
