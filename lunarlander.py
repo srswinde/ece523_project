@@ -9,6 +9,8 @@ import time
 import pickle, datetime
 import json
 import sys
+import pathlib
+import builtins
 VEC = pygame.math.Vector2
 
 
@@ -33,7 +35,7 @@ config = dict(
     speed_multiplier = 1.35,
     time_limit = 10,
     load_ships = True,
-    ship_file = 'theShips\Train1_2_4_5_6.pkl',
+    ship_file = 'theShips\Train1.pkl',
     default_level = 'levels\Train\Train2.txt'
 
 )
@@ -1072,6 +1074,10 @@ class red_planet:
         self.idx +=1
         return item
 
+
+def open(path, *args, **kwargs):
+    wpath = pathlib.PureWindowsPath(path)
+    return builtins.open(str(pathlib.Path(wpath)), *args, **kwargs )
 
 # End win condition methods.
 if __name__ == '__main__':
