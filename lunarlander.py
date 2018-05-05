@@ -9,6 +9,8 @@ import time
 import pickle, datetime
 import json
 import sys
+import pathlib
+import builtins
 VEC = pygame.math.Vector2
 
 
@@ -1072,6 +1074,10 @@ class red_planet:
         self.idx +=1
         return item
 
+
+def open(path, *args, **kwargs):
+    wpath = pathlib.PureWindowsPath(path)
+    return builtins.open(str(pathlib.Path(wpath)), *args, **kwargs )
 
 # End win condition methods.
 if __name__ == '__main__':
