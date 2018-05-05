@@ -1,0 +1,7 @@
+{
+    "radii_red"   : [170, 130, 200],
+    "centers_red" : [[680,630],[870,200],[390,340]], 
+    "center_white": [430, 720],
+    "radius_white": 0,
+    "ship"        : {"starting_pos":[920, 700], "starting_angle": 270}
+}

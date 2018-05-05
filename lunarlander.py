@@ -240,9 +240,9 @@ class PygView( object ):
                 else:
                     theMax = self.maxes[qqq] 
 
-                fitnesses = np.array(fitnesses) / theMax 
+                #fitnesses = np.array(fitnesses) / theMax 
                 
-                self.nfitnesses = self.nfitnesses + fitnesses
+                self.nfitnesses = self.nfitnesses + np.array(fitnesses)
 
 
             self.updateWeights()
@@ -380,32 +380,37 @@ class PygView( object ):
         #Invert. Make highest scores to Lowest
         #scores_sort = 1/scores_sort
 
-        if(scores_sort[0]> self.bestScore):
+        reject = True
+        if(scores_sort[0]>= self.bestScore):
             self.bestScore = scores_sort[0]
+            reject = False
         scores_sort_ind = scores.argsort()[::-1] #Descending order (highest to lowest)
 
         ##### PRINT STUFF #####
         print("")
         print("Generation: " , self.generation)
-
+        for i in range(config['num_ships']):
+            print("Ship Score:",scores[scores_sort_ind[i]],self.ships[scores_sort_ind[i]].fitnessDebug, "Weight:")
 
         #If we did worse than before, reject this generation
 
+        
         reject = False
-        '''
-        if(scores_sort[0]<self.bestScore):
+        if reject:
             scores = np.zeros(config['num_ships'])
             for i in range(config['num_ships']):
                 scores[i] = deepcopy(self.prevFitness[i])
                 self.ships[i].mlp = deepcopy(self.prevShips[i])
-                self.ships[i].fitness2 = deepcopy(self.prevFitness[i])
+
+
+                #self.ships[i].fitness2 = deepcopy(self.prevFitness[i])
 
             scores_sort = np.sort(scores)[::-1]
             #Invert. Make highest scores to Lowest
             #scores_sort = 1/scores_sort
             print("Generation Rejected")
-            reject = True
-        '''
+            
+        
         self.generation = self.generation + 1
         for i in range(config['num_ships']):
             #Get Weight value of best ship
@@ -436,7 +441,7 @@ class PygView( object ):
                 with open(fname, 'wb') as pfd:
                     pickle.dump(  self.logLst, pfd )
 
-            print("Ship Score:",scores[scores_sort_ind[i]],self.ships[scores_sort_ind[i]].fitnessDebug, "Weight:" , weightSum)
+            
         #print(self.bestScore)
         #########################
 
@@ -480,12 +485,13 @@ class PygView( object ):
         #Save the previous ships incase all the new ships are worse
         #We don't currently need this because we're always carrying the
         #best ships to the next round
-        self.prevShips = []
-        self.prevFitness = []
-        for i in range(len(self.ships)):
-            self.prevShips.append( deepcopy(self.ships[i].mlp))
-            self.prevFitness.append( deepcopy(self.ships[i].fitness2))
-            self.ships[i].mlp = deepcopy(newShips[i])
+        if(reject == False):
+            self.prevShips = []
+            self.prevFitness = []
+            for i in range(len(self.ships)):
+                self.prevShips.append( deepcopy(self.ships[i].mlp))
+                self.prevFitness = deepcopy(self.nfitnesses)
+                self.ships[i].mlp = deepcopy(newShips[i])
 
         self.nfitnesses = np.zeros(config['num_ships'])
 
@@ -623,8 +629,13 @@ class space_ship:
                 good_distances = distances[good_inds]
                 good_distances = np.min(good_distances)
                 good_distances = 1/good_distances
-                self.fitnessDebug = self.fitnessDebug + good_distances * maxD*10
-                self.fitness2 = self.fitness2 + bad_distances + good_distances * maxD*10
+                good_distances = good_distances * maxD
+
+                if(good_distances > 50):
+                    good_distances = 50
+
+                self.fitnessDebug = self.fitnessDebug + good_distances
+                self.fitness2 = self.fitness2 + bad_distances + good_distances
                 self.sawTheGoodPlanet = True
             else:
                 self.fitness2 = self.fitness2 + bad_distances
