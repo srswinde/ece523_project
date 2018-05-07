@@ -257,7 +257,7 @@ class PygView( object ):
                     theMax = self.maxes[qqq] 
 
 
-                if(normalize_fitness == True):
+                if(config['normalize_fitness'] == True):
                     fitnesses = np.array(fitnesses) / loopCount
                 
                 self.nfitnesses = self.nfitnesses + np.array(fitnesses)
