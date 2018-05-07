@@ -157,7 +157,7 @@ class PygView( object ):
                 loopCount = 0
                 while all_crashed == False:
                     self.draw_text("Generation:{}".format(self.generation))
-                    self.draw_text_top(("Level: {} of {} Ships Alive: {}".format(qqq,len(theLevels),shipsAlive)))
+                    self.draw_text_top(("Level: {} of {} Ships Alive: {}".format(qqq+1,len(theLevels),shipsAlive)))
                     
 
                     # Render the planet
