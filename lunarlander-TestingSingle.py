@@ -368,7 +368,7 @@ class PygView( object ):
         plist[:, 1] = center[1] + radius*np.sin( thetas )
 
 
-        pygame.draw.polygon( self.screen, colors.white, plist + landform )
+        pygame.draw.polygon( self.screen, colors.white, plist )
 
         return plist[ fi0:fi1, : ]
 

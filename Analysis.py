@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 
-with open('best.pkl', 'rb') as f:
+with open('bestTrained.pkl', 'rb') as f:
       lShipData = pickle.load(f)
    
 

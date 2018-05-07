@@ -8,7 +8,7 @@ import math
 import time
 import pickle, datetime
 import json
-import sys
+import sys  
 import pathlib
 import builtins
 VEC = pygame.math.Vector2
@@ -34,9 +34,10 @@ config = dict(
     starting_angle = 45,
     speed_multiplier = 1.35,
     time_limit = 5,
-    load_ships = False,
-    ship_file = 'theShips\Train1_3_3.pkl',
-    default_level = 'levels\Train\Train2.txt'
+    load_ships = True,
+    ship_file = 'theShips\Train1_2_4_5_6.pkl',
+    default_level = 'levels\Train\Train2.txt',
+    normalize_fitness = False
 
 )
 
@@ -44,7 +45,9 @@ TrainingLevels = ['levels\Train\Train1.txt','levels\Train\Train2.txt','levels\Tr
 
 TestingLevels = ['levels\Train\Train3.txt','levels\Train\Train3.txt','levels\Train\Train1.txt','levels\Train\Train2.txt','levels\Train\Train4.txt']
 
-theLevels = TestingLevels
+TestingLevels = ['levels\Test\Test3.txt']
+
+theLevels = TrainingLevels
 
 #These are just used for initializing the scikitlearn Neural Networks
 X_train = np.array([[0,0,0],[0,0,0],[0,0,0],[0,0,0]])
@@ -253,9 +256,11 @@ class PygView( object ):
                 else:
                     theMax = self.maxes[qqq] 
 
-                fitnesses = np.array(fitnesses) / loopCount
+
+                if(normalize_fitness == True):
+                    fitnesses = np.array(fitnesses) / loopCount
                 
-                self.nfitnesses = self.nfitnesses + fitnesses
+                self.nfitnesses = self.nfitnesses + np.array(fitnesses)
 
 
             self.updateWeights()
@@ -471,8 +476,8 @@ class PygView( object ):
         scores_sort = scores_sort/scores_sum
         probabilities = scores_sort
 
-        #Take best performing ships(Top 30%) and introduce directly to next round
-        num_bestShips = int(np.floor(config['num_ships']*0.3))
+        #Take best performing ships(Top 20%) and introduce directly to next round
+        num_bestShips = int(np.floor(config['num_ships']*0.2))
         for i in range(num_bestShips):
             newShips.append(deepcopy(self.ships[scores_sort_ind[i]].mlp))
 
